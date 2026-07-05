@@ -1,14 +1,16 @@
 import os
 import json
 import random
+import threading
 import requests
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
 # ================== تنظیمات ==================
-BOT_TOKEN = os.environ.get("BOT_TOKEN")  # توکن رو توی Render ست می‌کنیم
-OWNER_ID = 8391932958  # ⚠️ آیدی عددی خودت رو جایگزین کن (از @userinfobot بگیر)
-WEATHER_API_KEY = "کلید_API_آب_و_هوا"  # از openweathermap.org (اختیاری)
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+OWNER_ID = 8391932958  # ⚠️ آیدی عددی خودت رو جایگزین کن
+WEATHER_API_KEY = "کلید_API_آب_و_هوا"  # اختیاری
 
 # ================== فایل یادداشت‌ها ==================
 NOTES_FILE = "notes.json"
@@ -36,12 +38,26 @@ keywords = {
     "پشتیبانی": None,
 }
 
+# ================== وب‌سرور ساده (برای رد کردن چک پورت رندر) ==================
+class DummyHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is running")
+    def log_message(self, format, *args):
+        pass  # بی‌صدا
+
+def start_web_server():
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), DummyHandler)
+    print(f"🌐 وب‌سرور روی پورت {port} گوش میده...")
+    server.serve_forever()
+
 # ================== مدیریت پیام‌ها ==================
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message
     text = msg.text.strip() if msg.text else ""
 
-    # پاسخ به کلیدواژه‌ها
     if text in keywords:
         if text == "پشتیبانی":
             try:
@@ -54,7 +70,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await msg.reply_text(keywords[text])
 
-    # آب و هوا
     elif text.startswith("هوا "):
         city = text.replace("هوا ", "", 1).strip()
         if WEATHER_API_KEY == "کلید_API_آب_و_هوا":
@@ -72,13 +87,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except:
                 await msg.reply_text("خطا در دریافت آب‌وهوا.")
 
-    # بازی‌ها
     elif text == "تاس":
         await msg.reply_dice(emoji="🎲")
     elif text == "دارت":
         await msg.reply_dice(emoji="🎯")
 
-    # یادداشت‌ها
     elif text.startswith("یادداشت:"):
         user_id = str(update.effective_user.id)
         note_text = text.replace("یادداشت:", "", 1).strip()
@@ -98,7 +111,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await msg.reply_text("هنوز یادداشتی نداری!")
 
-    # منوی دکمه‌ای
     elif text == "منو":
         keyboard = [
             [InlineKeyboardButton("🎲 تاس", callback_data="dice")],
@@ -111,15 +123,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.reply_text("یکی از گزینه‌ها رو انتخاب کن:",
                              reply_markup=InlineKeyboardMarkup(keyboard))
 
-    # عکس
     elif msg.photo:
         await msg.reply_text("تصویر شما دریافت شد.")
 
-    # پاسخ پیش‌فرض
     else:
         await msg.reply_text(f"پیام شما: {text}")
 
-# ================== دکمه‌های شیشه‌ای ==================
+# ================== دکمه‌ها ==================
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -152,14 +162,18 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "- بنویس «منو» برای دکمه‌ها"
         )
 
-# ================== خوش‌آمدگویی به اعضای جدید ==================
+# ================== خوش‌آمدگویی ==================
 async def welcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for member in update.message.new_chat_members:
         if not member.is_bot:
             await update.message.reply_text(f"خوش آمدی {member.first_name}! 🎉")
 
-# ================== اجرای ربات ==================
+# ================== اجرای ربات + وب‌سرور ==================
 def main():
+    # وب‌سرور رو توی یه ترد جدا راه میندازیم
+    threading.Thread(target=start_web_server, daemon=True).start()
+
+    # ربات تلگرام
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_handler(MessageHandler(filters.PHOTO, handle_message))
