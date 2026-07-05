@@ -215,7 +215,7 @@ async def learn_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     trigger, response = text.split("|",1)
     trigger = trigger.strip(); response = response.strip()
     if not trigger or not response: return await update.message.reply_text("کلمه و پاسخ خالی نباشن.")
-    db["learned"][trigger] = response   # ذخیرهٔ عین کلمه (حساس به بزرگی)
+    db["learned"][trigger] = response
     save_db()
     await update.message.reply_text(f"✅ یادم اومد به «{trigger}» بگم:\n{response}")
 
@@ -253,7 +253,7 @@ async def list_jokes_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
     txt = "📋 لیست جُک‌ها:\n" + "\n".join(f"{i+1}. {j}" for i,j in enumerate(jokes))
     await update.message.reply_text(txt[:4000])
 
-# ================== مدیریت پیام‌ها (با جستجوی بی‌حساس و بدون پاسخ پیش‌فرض) ==================
+# ================== مدیریت پیام‌ها ==================
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message
     chat = update.effective_chat
@@ -271,12 +271,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     log_action(user_id, "message", text[:50])
 
-    # ضد لینک (گروه)
+    # *** ضد لینک (گروه) – اول هشدار، سپس حذف ***
     if chat.type in ["group","supergroup"] and re.search(r'https?://', text):
+        await msg.reply_text("❌ لینک ممنوع است.", quote=True)
         try:
             await msg.delete()
-            await msg.reply_text("❌ لینک ممنوع.", quote=True)
-        except: pass
+        except:
+            pass
         return
 
     # ضد اسپم (گروه)
@@ -290,7 +291,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # فیلتر کلمات نامناسب (گروه)
     if chat.type in ["group","supergroup"]:
         for bw in db["bad_words"]:
-            if bw in text.lower():   # اینجا هم بی‌حساس کردیم
+            if bw in text.lower():
                 try:
                     await msg.delete()
                     await msg.reply_text("⛔ پیام حذف شد (کلمه نامناسب).")
@@ -304,7 +305,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.reply_text(f"📞 ارتباط با سازنده:\n{ADMIN_USERNAME}")
         return
 
-    # *** جدید *** جستجوی کلمات یادگرفته‌شده (بی‌حساس به بزرگی/کوچکی)
+    # کلمات یادگرفته‌شده
     for trigger, response in db["learned"].items():
         if trigger.lower() in text.lower():
             await msg.reply_text(response)
@@ -354,7 +355,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except: pass
     elif msg.photo:
         await msg.reply_text("📸 عکس دریافت شد.")
-    # *** حذف else: قبلی – دیگه به پیام‌های ناشناخته جواب نمی‌دیم ***
+    # (پیام ناشناخته → سکوت)
 
 # ================== دکمه‌ها ==================
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -403,7 +404,7 @@ def main():
     app.add_handler(MessageHandler(filters.PHOTO, handle_message))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
-    print("✅ ربات با جستجوی هوشمند و بی‌صدا اجرا شد.")
+    print("✅ ربات با هشدار لینک و سکوت هوشمند اجرا شد.")
     app.run_polling()
 
 if __name__ == "__main__":
