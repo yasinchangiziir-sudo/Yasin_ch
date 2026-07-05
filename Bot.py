@@ -6,7 +6,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
 # ================== تنظیمات ==================
-BOT_TOKEN = os.environ.get("8543151494:AAFayMK-A_kx7vA0nKALAG3IKBqOQdav_yQ")  # توکن رو توی Render ست می‌کنیم
+BOT_TOKEN = os.environ.get("BOT_TOKEN")  # توکن رو توی Render ست می‌کنیم
 OWNER_ID = 8391932958  # ⚠️ آیدی عددی خودت رو جایگزین کن (از @userinfobot بگیر)
 WEATHER_API_KEY = "کلید_API_آب_و_هوا"  # از openweathermap.org (اختیاری)
 
