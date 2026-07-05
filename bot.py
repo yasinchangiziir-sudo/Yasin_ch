@@ -271,9 +271,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     log_action(user_id, "message", text[:50])
 
-    # *** ضد لینک (گروه) – اول هشدار، سپس حذف ***
+    # ضد لینک (گروه) – اول هشدار، سپس حذف (بدون quote=True)
     if chat.type in ["group","supergroup"] and re.search(r'https?://', text):
-        await msg.reply_text("❌ لینک ممنوع است.", quote=True)
+        await msg.reply_text("❌ لینک ممنوع است.")  # quote حذف شد
         try:
             await msg.delete()
         except:
@@ -305,7 +305,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.reply_text(f"📞 ارتباط با سازنده:\n{ADMIN_USERNAME}")
         return
 
-    # کلمات یادگرفته‌شده
+    # کلمات یادگرفته‌شده (بی‌حساس)
     for trigger, response in db["learned"].items():
         if trigger.lower() in text.lower():
             await msg.reply_text(response)
@@ -355,7 +355,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except: pass
     elif msg.photo:
         await msg.reply_text("📸 عکس دریافت شد.")
-    # (پیام ناشناخته → سکوت)
+    # پیام ناشناخته → سکوت
 
 # ================== دکمه‌ها ==================
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -404,7 +404,7 @@ def main():
     app.add_handler(MessageHandler(filters.PHOTO, handle_message))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
-    print("✅ ربات با هشدار لینک و سکوت هوشمند اجرا شد.")
+    print("✅ ربات با هشدار لینک (اصلاح‌شده) اجرا شد.")
     app.run_polling()
 
 if __name__ == "__main__":
