@@ -6,16 +6,16 @@ import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, MessageHandler, CallbackQueryHandler, filters, ContextTypes
-from huggingface_hub import InferenceClient
+from groq import Groq
 
 # ================== تنظیمات ==================
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-HF_API_KEY = os.environ.get("HF_API_KEY")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 OWNER_ID = 8391932958  # ⚠️ آیدی عددی خودت
 WEATHER_API_KEY = "کلید_API_آب_و_هوا"  # اختیاری
 
-# کلاینت Hugging Face
-client = InferenceClient(api_key=HF_API_KEY)
+# کلاینت Groq
+groq_client = Groq(api_key=GROQ_API_KEY)
 
 # ================== فایل یادداشت‌ها ==================
 NOTES_FILE = "notes.json"
@@ -43,7 +43,7 @@ keywords = {
     "پشتیبانی": None,
 }
 
-# ================== وب‌سرور ساختگی ==================
+# ================== وب‌سرور ساختگی (برای رندر) ==================
 class DummyHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -58,37 +58,19 @@ def start_web_server():
     print(f"🌐 وب‌سرور روی پورت {port} گوش میده...")
     server.serve_forever()
 
-# ================== درخواست به هوش مصنوعی (Hugging Face) ==================
+# ================== درخواست به هوش مصنوعی (Groq) ==================
 def ask_ai(prompt):
-    """ارسال پرامپت به مدل رایگان Mistral"""
     try:
-        response = client.text_generation(
-            prompt,
-            model="mistralai/Mistral-7B-Instruct-v0.3",
-            max_new_tokens=500,
+        response = groq_client.chat.completions.create(
+            model="llama3-8b-8192",   # مدل رایگان و قدرتمند
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=500,
             temperature=0.7,
         )
-        return response.strip()
+        return response.choices[0].message.content.strip()
     except Exception as e:
-        print(f"❌ خطای Hugging Face: {e}")
+        print(f"❌ خطای Groq: {e}")
         return "متأسفانه مشکلی در ارتباط با هوش مصنوعی پیش اومد."
-
-# ================== تحلیل عکس با هوش مصنوعی ==================
-def analyze_image(image_bytes, caption=""):
-    """تحلیل عکس با مدل تصویر به متن"""
-    try:
-        # تبدیل عکس به URL موقت (اختیاری - اینجا از image-to-text استفاده می‌کنیم)
-        response = client.image_to_text(
-            image_bytes,
-            model="Salesforce/blip-image-captioning-base"
-        )
-        if isinstance(response, list) and len(response) > 0:
-            return f"🖼 تحلیل عکس: {response[0].get('generated_text', 'نتونستم تحلیل کنم.')}"
-        else:
-            return "نتونستم عکس رو تحلیل کنم."
-    except Exception as e:
-        print(f"❌ خطای تحلیل عکس: {e}")
-        return "متأسفانه مشکلی در تحلیل عکس پیش اومد."
 
 # ================== مدیریت پیام‌ها ==================
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -172,21 +154,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                              reply_markup=InlineKeyboardMarkup(keyboard))
         return
 
-    # ۶. پردازش عکس با AI
+    # ۶. عکس‌ها (بدون AI برای تحلیل؛ Groq فعلاً مدل بینایی رایگان نداره)
     if msg.photo:
-        await msg.reply_text("🔍 در حال تحلیل عکس...")
-        try:
-            photo_file = await msg.photo[-1].get_file()
-            photo_bytes = await photo_file.download_as_bytearray()
-            caption = msg.caption or ""
-            result = analyze_image(bytes(photo_bytes), caption)
-            await msg.reply_text(result)
-        except Exception as e:
-            print(f"❌ خطا در عکس: {e}")
-            await msg.reply_text("متأسفانه نتونستم عکس رو تحلیل کنم.")
+        await msg.reply_text("🖼 تصویر شما دریافت شد. (قابلیت تحلیل عکس به زودی اضافه میشه)")
         return
 
-    # ۷. هوش مصنوعی برای پیام‌های ناشناخته
+    # ۷. هوش مصنوعی برای بقیه‌ی پیام‌ها
     await msg.reply_chat_action(action="typing")
     ai_response = ask_ai(text)
     await msg.reply_text(ai_response)
@@ -222,8 +195,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "- بنویس «یادداشت‌ها» برای دیدن یادداشت‌ها\n"
             "- بنویس «هوا تهران» برای آب‌وهوا\n"
             "- بنویس «منو» برای دکمه‌ها\n"
-            "- **هر سوال دیگه‌ای بپرسی، هوش مصنوعی جوابت رو میده! 🤖**\n"
-            "- **عکس بفرستی، برات تحلیلش می‌کنه! 🖼**"
+            "- **هر سوال دیگه‌ای بپرسی، هوش مصنوعی جوابت رو میده! 🤖**"
         )
 
 # ================== خوش‌آمدگویی ==================
@@ -241,7 +213,7 @@ def main():
     app.add_handler(MessageHandler(filters.PHOTO, handle_message))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
-    print("✅ ربات هوشمند (Hugging Face) اجرا شد...")
+    print("✅ ربات هوشمند با Groq اجرا شد...")
     app.run_polling()
 
 if __name__ == "__main__":
