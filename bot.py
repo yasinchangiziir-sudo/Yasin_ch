@@ -7,7 +7,7 @@ from telegram.ext import Application, MessageHandler, CommandHandler, CallbackQu
 
 # ================== تنظیمات ==================
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-OWNER_ID = 123456789          # ⚠️ آیدی عددی خودت
+OWNER_ID = 8391932958          # ⚠️ آیدی عددی خودت
 ADMIN_USERNAME = "@YasinChangizi"   # ⚠️ یوزرنیم تلگرامت
 
 # ================== دیتابیس ==================
