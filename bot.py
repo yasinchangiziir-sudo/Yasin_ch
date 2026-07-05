@@ -10,7 +10,7 @@ from telegram.ext import Application, MessageHandler, CommandHandler, CallbackQu
 # ================== تنظیمات ==================
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 OWNER_ID = 8391932958          # ⚠️ آیدی عددی خودت
-ADMIN_USERNAME = "09180010320"   # ⚠️ یوزرنیم تلگرامت
+ADMIN_USERNAME = "#9180010320"   # ⚠️ یوزرنیم تلگرامت
 
 # ================== دیتابیس ==================
 DB_FILE = "bot_data.json"
@@ -139,12 +139,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 من ربات همه‌فن‌حریف تو، ساخته‌ی یاسین چنگیزی ❤️
 
 ✨ کلی قابلیت جدید:
-🎮 /guessword → بازی حدس کلمه گروهی
+🎮 /guessword → بازی حدس کلمه (بدون /guess)
 🐣 /pet → پت مجازی
 🎯 /quests → مأموریت‌های روزانه
 💰 دلار / سکه / طلا → قیمت لحظه‌ای
 📊 /pollbtn → نظرسنجی دکمه‌ای
-📥 /insta → دانلود از اینستاگرام
+📥 /insta → دانلود از اینستاگرام (بزودی)
 
 و همه قابلیت‌های قبلی: /rps, /fal, /challenge, /referral, /diary, /shop, /jokes, /learn و...
 برای راهنمای کامل، /start رو بزن.
@@ -283,7 +283,7 @@ async def list_jokes_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
     txt = "📋 لیست جُک‌ها:\n" + "\n".join(f"{i+1}. {j}" for i,j in enumerate(jokes))
     await update.message.reply_text(txt[:4000])
 
-# ================== استیکر، گیف، فروشگاه، referral, diary, fal, challenge, rps (کامل) ==================
+# ================== استیکر، گیف، فروشگاه، referral, diary, fal, challenge, rps ==================
 async def sticker_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.sticker:
         db["stickers"].append(update.message.sticker.file_id)
@@ -415,35 +415,46 @@ async def handle_rps(update: Update, context: ContextTypes.DEFAULT_TYPE):
             result = "😞 باختی!"
     await query.edit_message_text(f"تو: {RPS_OPTIONS[user_choice]}\nربات: {RPS_OPTIONS[bot_choice]}\n{result}")
 
-# ================== بازی حدس کلمه ==================
+# ================== بازی حدس کلمه (فقط گروه) ==================
 WORDS = ["شیر", "خورشید", "گل", "کتاب", "پلنگ", "دریا", "ستاره", "آسمان", "ماه", "زمین", "کوه", "آبشار", "مدرسه", "پیتزا", "برف", "بهار", "شکلات", "تلفن", "موسیقی", "فیلم"]
 
 async def guessword_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
-    if chat.type not in ["group","supergroup"]: return await update.message.reply_text("فقط گروه.")
+    if chat.type not in ["group","supergroup"]:
+        return await update.message.reply_text("فقط گروه.")
     game = db["group_games"].setdefault(str(chat.id), {})
-    if game.get("word"): return await update.message.reply_text("یه بازی در حال انجامه!")
+    if game.get("word"):
+        return await update.message.reply_text("یه بازی در حال انجامه! کلمه رو حدس بزن (بدون /guess).")
     word = random.choice(WORDS)
-    game.update({"word": word, "hint": "🔤 " + " ".join("_" for _ in word), "guesses": []})
+    hint = "🔤 " + " ".join("_" for _ in word)
+    game.update({"word": word, "hint": hint, "guesses": []})
     save_db()
-    await update.message.reply_text(f"🎮 بازی حدس کلمه!\n{game['hint']} ({len(word)} حرف)\nحدس: /guess کلمه")
+    await update.message.reply_text(f"🎮 بازی حدس کلمه شروع شد!\n{hint} ({len(word)} حرف)\nحدس خودت رو مستقیماً تایپ کن (نیاز به /guess نیست).")
 
 async def guess_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # این دستور همچنان برای سازگاری باقی می‌ماند
     chat = update.effective_chat; user = update.effective_user
-    if not context.args: return await update.message.reply_text("/guess کلمه")
+    if not context.args:
+        return await update.message.reply_text("/guess کلمه")
     guess = " ".join(context.args).strip()
     game = db["group_games"].get(str(chat.id))
-    if not game or not game.get("word"): return await update.message.reply_text("بازی فعال نیست.")
-    if guess in game["guesses"]: return await update.message.reply_text("قبلاً حدس زده شده.")
-    game["guesses"].append(guess)
+    if not game or not game.get("word"):
+        return await update.message.reply_text("بازی فعال نیست. /guessword")
+    await process_guess(update.message, user, guess, game, str(chat.id))
+
+async def process_guess(msg, user, guess, game, chat_id_str):
     if guess == game["word"]:
         add_score(str(user.id), 50)
-        await update.message.reply_text(f"🎉 {user.first_name} برد! {game['word']} (+۵۰ امتیاز)")
-        del db["group_games"][str(chat.id)]
+        await msg.reply_text(f"🎉 {user.first_name} برنده شد! کلمه «{game['word']}» بود. ۵۰ امتیاز گرفت.")
+        del db["group_games"][chat_id_str]
+        save_db()
     else:
-        hint = " ".join(w if g == w else "_" for g, w in zip(guess, game["word"])) if len(guess) == len(game["word"]) else game["hint"]
-        await update.message.reply_text(f"❌ اشتباه! {hint}")
-    save_db()
+        game["guesses"].append(guess)
+        word = game["word"]
+        hint = " ".join(w if g == w else "_" for g, w in zip(guess, word)) if len(guess) == len(word) else game["hint"]
+        game["hint"] = hint
+        save_db()
+        await msg.reply_text(f"❌ اشتباه! {hint}")
 
 # ================== پت مجازی ==================
 PET_PRICES = {"جوجه": ("🐣 جوجه", 100), "سگ": ("🐶 سگ", 200), "گربه": ("🐱 گربه", 250)}
@@ -513,23 +524,26 @@ async def claim_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
     await update.message.reply_text("شماره نامعتبر.")
 
-# ================== قیمت ارز/طلا ==================
+# ================== قیمت ارز/طلا (API جدید) ==================
 async def price_message(update: Update, context: ContextTypes.DEFAULT_TYPE, item: str = None):
     try:
+        headers = {"User-Agent": "Mozilla/5.0"}
+        r = http_req.get("https://call1.tgju.org/ajax.json?type=current", headers=headers, timeout=10)
+        data = r.json()
         if item == "دلار":
-            r = http_req.get("https://api.tgju.org/v1/market/indicator/summary/price_dollar_rl?type=current", timeout=5).json()
-            txt = f"💵 دلار: {r['result']['data']['current']['price']:,} تومان"
+            price = data["current"]["price_dollar_rl"]["p"]
+            txt = f"💵 دلار: {int(price):,} تومان"
         elif item == "سکه":
-            r = http_req.get("https://api.tgju.org/v1/market/indicator/summary/price_coin?type=current", timeout=5).json()
-            txt = f"🥇 سکه: {r['result']['data']['current']['price']:,} تومان"
+            price = data["current"]["price_coin"]["p"]
+            txt = f"🥇 سکه: {int(price):,} تومان"
         elif item == "طلا":
-            r = http_req.get("https://api.tgju.org/v1/market/indicator/summary/price_gold_18?type=current", timeout=5).json()
-            txt = f"💍 طلا ۱۸: {r['result']['data']['current']['price']:,} تومان"
+            price = data["current"]["price_gold_18"]["p"]
+            txt = f"💍 طلا ۱۸: {int(price):,} تومان"
         else:
             return
         await update.message.reply_text(txt)
-    except:
-        await update.message.reply_text("خطا در دریافت قیمت.")
+    except Exception as e:
+        await update.message.reply_text("⚠️ در حال حاضر امکان دریافت قیمت وجود ندارد. لطفاً بعداً تلاش کنید.")
 
 # ================== نظرسنجی دکمه‌ای ==================
 async def pollbtn_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -557,25 +571,11 @@ async def pollbtn_vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save_db()
     await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
 
-# ================== دانلود اینستاگرام ==================
+# ================== دانلود اینستاگرام (موقتاً غیرفعال) ==================
 async def insta_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not context.args: return await update.message.reply_text("/insta لینک")
-    url = context.args[0]
-    await update.message.reply_text("⏳ در حال دریافت...")
-    try:
-        resp = http_req.get(f"https://api.ddownloader.com/v2/instagram/media?url={url}", timeout=15).json()
-        if resp.get("media"):
-            for media in resp["media"]:
-                if media["type"] == "image":
-                    await update.message.reply_photo(media["url"])
-                else:
-                    await update.message.reply_video(media["url"])
-        else:
-            await update.message.reply_text("نتونستم دانلود کنم.")
-    except Exception as e:
-        await update.message.reply_text("خطا در دانلود.")
+    await update.message.reply_text("📥 متأسفانه در حال حاضر سرور دانلود اینستاگرام در دسترس نیست. به‌زودی جایگزین می‌شود.")
 
-# ================== مدیریت پیام‌ها (جامع) ==================
+# ================== مدیریت پیام‌ها (با حدس بدون /guess) ==================
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message; chat = update.effective_chat; user = update.effective_user
     user_id = str(user.id); text = msg.text or msg.caption or ""
@@ -590,7 +590,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     log_action(user_id, "message", text[:50])
 
-    # ضد لینک
+    # ضد لینک (قبل از حدس، چون لینک ممنوعه)
     if chat.type in ["group","supergroup"] and re.search(r'https?://', text):
         await msg.reply_text("❌ لینک ممنوع است.")
         try: await msg.delete()
@@ -612,6 +612,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return
 
     add_score(user_id)
+
+    # حدس کلمه در گروه (بدون نیاز به /guess)
+    if chat.type in ["group", "supergroup"] and not text.startswith("/"):
+        game = db["group_games"].get(str(chat.id))
+        if game and game.get("word"):
+            guess = text.strip()
+            await process_guess(msg, user, guess, game, str(chat.id))
+            return
 
     # پشتیبانی
     if text == "پشتیبانی":
@@ -793,7 +801,7 @@ def main():
     app.add_handler(CallbackQueryHandler(pollbtn_vote, pattern="^pollbtn_"))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
-    print("✅ ربات فوق‌کامل با همه ارتقاها اجرا شد.")
+    print("✅ ربات فوق‌کامل با حدس بدون اسلش و قیمت‌های جدید اجرا شد.")
     app.run_polling()
 
 if __name__ == "__main__":
