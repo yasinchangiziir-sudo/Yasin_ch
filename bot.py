@@ -14,7 +14,6 @@ GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 OWNER_ID = 8391932958  # ⚠️ آیدی عددی خودت
 WEATHER_API_KEY = "کلید_API_آب_و_هوا"  # اختیاری
 
-# کلاینت Groq
 groq_client = Groq(api_key=GROQ_API_KEY)
 
 # ================== فایل یادداشت‌ها ==================
@@ -43,7 +42,7 @@ keywords = {
     "پشتیبانی": None,
 }
 
-# ================== وب‌سرور ساختگی (برای رندر) ==================
+# ================== وب‌سرور ساختگی ==================
 class DummyHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -58,26 +57,27 @@ def start_web_server():
     print(f"🌐 وب‌سرور روی پورت {port} گوش میده...")
     server.serve_forever()
 
-# ================== درخواست به هوش مصنوعی (Groq) ==================
+# ================== درخواست به هوش مصنوعی (با نمایش خطا) ==================
 def ask_ai(prompt):
     try:
         response = groq_client.chat.completions.create(
-            model="llama3-8b-8192",   # مدل رایگان و قدرتمند
+            model="llama3-8b-8192",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=500,
             temperature=0.7,
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
-        print(f"❌ خطای Groq: {e}")
-        return "متأسفانه مشکلی در ارتباط با هوش مصنوعی پیش اومد."
+        # نمایش خطای واقعی برای تشخیص
+        error_msg = str(e)
+        print(f"❌ خطای Groq: {error_msg}")
+        return f"❌ خطای هوش مصنوعی:\n{error_msg}"
 
 # ================== مدیریت پیام‌ها ==================
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message
     text = msg.text.strip() if msg.text else ""
 
-    # ۱. پاسخ به کلیدواژه‌ها
     if text in keywords:
         if text == "پشتیبانی":
             try:
@@ -91,7 +91,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await msg.reply_text(keywords[text])
         return
 
-    # ۲. آب‌وهوا
     if text.startswith("هوا "):
         city = text.replace("هوا ", "", 1).strip()
         if WEATHER_API_KEY == "کلید_API_آب_و_هوا":
@@ -110,7 +109,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await msg.reply_text("خطا در دریافت آب‌وهوا.")
         return
 
-    # ۳. بازی‌ها
     if text == "تاس":
         await msg.reply_dice(emoji="🎲")
         return
@@ -118,7 +116,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.reply_dice(emoji="🎯")
         return
 
-    # ۴. یادداشت‌ها
     if text.startswith("یادداشت:"):
         user_id = str(update.effective_user.id)
         note_text = text.replace("یادداشت:", "", 1).strip()
@@ -140,7 +137,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await msg.reply_text("هنوز یادداشتی نداری!")
         return
 
-    # ۵. منو
     if text == "منو":
         keyboard = [
             [InlineKeyboardButton("🎲 تاس", callback_data="dice")],
@@ -154,12 +150,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                              reply_markup=InlineKeyboardMarkup(keyboard))
         return
 
-    # ۶. عکس‌ها (بدون AI برای تحلیل؛ Groq فعلاً مدل بینایی رایگان نداره)
     if msg.photo:
-        await msg.reply_text("🖼 تصویر شما دریافت شد. (قابلیت تحلیل عکس به زودی اضافه میشه)")
+        await msg.reply_text("🖼 تصویر شما دریافت شد. (تحلیل عکس در این نسخه فعال نیست)")
         return
 
-    # ۷. هوش مصنوعی برای بقیه‌ی پیام‌ها
+    # هوش مصنوعی برای پیام‌های ناشناخته
     await msg.reply_chat_action(action="typing")
     ai_response = ask_ai(text)
     await msg.reply_text(ai_response)
