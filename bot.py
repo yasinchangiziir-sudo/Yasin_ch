@@ -7,17 +7,16 @@ from telegram.ext import Application, MessageHandler, CommandHandler, CallbackQu
 
 # ================== تنظیمات ==================
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-OWNER_ID = 8391932958   # ⚠️ آیدی عددی خودت
+OWNER_ID = 8391932958          # ⚠️ آیدی عددی خودت
+ADMIN_USERNAME = "@YasinChangizi"   # ⚠️ یوزرنیم تلگرامت
 
-# ================== دیتابیس داخلی ==================
+# ================== دیتابیس ==================
 DB_FILE = "bot_data.json"
 try:
     with open(DB_FILE, "r", encoding="utf-8") as f:
         db = json.load(f)
 except:
     db = {}
-
-# مقداردهی اولیه کلیدها
 db.setdefault("users", {})
 db.setdefault("bad_words", [])
 db.setdefault("logs", [])
@@ -39,7 +38,7 @@ def log_action(user_id, action, detail=""):
         db["logs"] = db["logs"][-500:]
     save_db()
 
-# ================== وب سرور برای رندر ==================
+# ================== وب‌سرور ==================
 class DummyHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -52,7 +51,7 @@ def start_web_server():
     server = HTTPServer(("0.0.0.0", port), DummyHandler)
     server.serve_forever()
 
-# ================== توابع کاربران (مانند قبل) ==================
+# ================== توابع کاربران ==================
 def get_user(user_id: str):
     return db["users"].get(user_id)
 
@@ -91,9 +90,8 @@ def is_muted(user_id: str) -> bool:
             save_db()
     return False
 
-# ================== ضد اسپم (گروه) ==================
+# ================== ضد اسپم ==================
 user_last_messages = defaultdict(list)
-
 def is_spam(user_id: str) -> bool:
     now = datetime.now()
     user_last_messages[user_id] = [t for t in user_last_messages[user_id] if (now - t).seconds < 3]
@@ -102,7 +100,7 @@ def is_spam(user_id: str) -> bool:
     user_last_messages[user_id].append(now)
     return False
 
-# ================== دستورات پایه ==================
+# ================== دستورات عمومی ==================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     register_user(str(user.id), user.username or "", user.first_name or "")
@@ -116,13 +114,14 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/mute - سکوت کاربر\n"
         "/poll - نظرسنجی\n"
         "/remind - یادآوری\n"
-        "/learn - یاد دادن حرف به ربات (ادمین)\n"
-        "/addjoke - اضافه کردن جُک (ادمین)\n"
+        "/learn - یاد دادن حرف (ادمین)\n"
+        "/addjoke - اضافه کردن جُک\n"
         "/jokes - لیست جُک‌ها\n"
-        "جُک - تاس - دارت - امتیاز - تاپ - منو - قرعه‌کشی - یادداشت"
+        "پشتیبانی - آیدی سازنده\n"
+        "جک - تاس - دارت - امتیاز - تاپ - منو - قرعه‌کشی - یادداشت"
     )
 
-# ================== پنل ادمین (همان قبلی) ==================
+# ================== پنل ادمین ==================
 async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != OWNER_ID:
         await update.message.reply_text("❌ دسترسی غیرمجاز.")
@@ -146,35 +145,19 @@ async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except: pass
         await update.message.reply_text(f"✅ ارسال به {ok} کاربر")
     elif cmd == "block" and len(args) == 2:
-        uid = args[1]
-        u = get_user(uid)
-        if u:
-            u["blocked"] = True
-            save_db()
-            await update.message.reply_text("کاربر مسدود شد.")
-        else:
-            await update.message.reply_text("پیدا نشد.")
+        uid = args[1]; u = get_user(uid)
+        if u: u["blocked"] = True; save_db(); await update.message.reply_text("کاربر مسدود شد.")
+        else: await update.message.reply_text("پیدا نشد.")
     elif cmd == "unblock" and len(args) == 2:
-        uid = args[1]
-        u = get_user(uid)
-        if u:
-            u["blocked"] = False
-            save_db()
-            await update.message.reply_text("کاربر آزاد شد.")
-        else:
-            await update.message.reply_text("پیدا نشد.")
+        uid = args[1]; u = get_user(uid)
+        if u: u["blocked"] = False; save_db(); await update.message.reply_text("کاربر آزاد شد.")
+        else: await update.message.reply_text("پیدا نشد.")
     elif cmd == "badword" and len(args) >= 3:
         sub, word = args[1], args[2]
         if sub == "add":
-            if word not in db["bad_words"]:
-                db["bad_words"].append(word)
-                save_db()
-                await update.message.reply_text(f"«{word}» اضافه شد.")
+            if word not in db["bad_words"]: db["bad_words"].append(word); save_db(); await update.message.reply_text(f"«{word}» اضافه شد.")
         elif sub == "remove":
-            if word in db["bad_words"]:
-                db["bad_words"].remove(word)
-                save_db()
-                await update.message.reply_text(f"«{word}» حذف شد.")
+            if word in db["bad_words"]: db["bad_words"].remove(word); save_db(); await update.message.reply_text(f"«{word}» حذف شد.")
     elif cmd == "logs":
         recent = db["logs"][-20:]
         txt = "📝 آخرین لاگ‌ها:\n" + "\n".join(f"{l['time']} | {l['action']} | {l['detail'][:30]}" for l in recent)
@@ -182,30 +165,18 @@ async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("دستور نامعتبر.")
 
-# ================== Mute / Poll / Remind (بدون تغییر) ==================
+# ================== Mute / Poll / Remind ==================
 async def mute_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat = update.effective_chat
-    user = update.effective_user
-    if chat.type not in ["group", "supergroup"]:
-        await update.message.reply_text("فقط توی گروه.")
-        return
+    chat = update.effective_chat; user = update.effective_user
+    if chat.type not in ["group","supergroup"]: return await update.message.reply_text("فقط گروه.")
     member = await context.bot.get_chat_member(chat.id, user.id)
-    if member.status not in ["administrator", "creator"] and user.id != OWNER_ID:
-        await update.message.reply_text("❌ فقط ادمین‌ها.")
-        return
-    if not context.args or len(context.args) < 2:
-        await update.message.reply_text("/mute user_id دقیقه")
-        return
+    if member.status not in ["administrator","creator"] and user.id != OWNER_ID: return await update.message.reply_text("❌ فقط ادمین.")
+    if not context.args or len(context.args) < 2: return await update.message.reply_text("/mute user_id دقیقه")
     target_id = context.args[0]
-    try:
-        minutes = int(context.args[1])
-    except:
-        await update.message.reply_text("مدت نامعتبر.")
-        return
+    try: minutes = int(context.args[1])
+    except: return await update.message.reply_text("مدت نامعتبر.")
     target = get_user(target_id)
-    if not target:
-        await update.message.reply_text("کاربر ثبت‌نام نکرده.")
-        return
+    if not target: return await update.message.reply_text("کاربر ثبت‌نام نکرده.")
     until = datetime.now() + timedelta(minutes=minutes)
     target["muted_until"] = until.strftime("%Y-%m-%d %H:%M:%S")
     save_db()
@@ -213,116 +184,76 @@ async def mute_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def poll_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = " ".join(context.args)
-    if "|" not in text:
-        await update.message.reply_text("/poll سوال | گزینه۱, گزینه۲,...")
-        return
-    question, opts = text.split("|", 1)
+    if "|" not in text: return await update.message.reply_text("/poll سوال | گزینه۱, گزینه۲,...")
+    question, opts = text.split("|",1)
     options = [o.strip() for o in opts.split(",") if o.strip()]
-    if len(options) < 2:
-        await update.message.reply_text("حداقل ۲ گزینه.")
-        return
+    if len(options)<2: return await update.message.reply_text("حداقل ۲ گزینه.")
     await update.message.reply_poll(question=question.strip(), options=options, is_anonymous=True)
 
 async def remind(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not context.args:
-        await update.message.reply_text("/remind 10m پیام")
-        return
+    if not context.args: return await update.message.reply_text("/remind 10m پیام")
     try:
         delay_str = context.args[0]
         message = " ".join(context.args[1:])
-        if not message:
-            await update.message.reply_text("متن یادآوری را بنویس.")
-            return
-        unit = delay_str[-1].lower()
-        amount = int(delay_str[:-1])
+        if not message: return await update.message.reply_text("متن یادآوری را بنویس.")
+        unit = delay_str[-1].lower(); amount = int(delay_str[:-1])
         if unit == 's': seconds = amount
-        elif unit == 'm': seconds = amount * 60
-        elif unit == 'h': seconds = amount * 3600
-        else:
-            await update.message.reply_text("واحد نامعتبر.")
-            return
+        elif unit == 'm': seconds = amount*60
+        elif unit == 'h': seconds = amount*3600
+        else: return await update.message.reply_text("واحد نامعتبر.")
         await update.message.reply_text(f"⏰ یادآوری برای {amount}{unit} دیگر تنظیم شد.")
         await asyncio.sleep(seconds)
         await update.message.reply_text(f"🔔 یادآوری:\n{message}")
     except Exception as e:
         await update.message.reply_text(f"خطا: {e}")
 
-# ================== مدیریت یادگیری (Learn) ==================
+# ================== یادگیری و جُک ==================
 async def learn_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != OWNER_ID:
-        await update.message.reply_text("❌ فقط سازنده می‌تونه یاد بده.")
-        return
+    if update.effective_user.id != OWNER_ID: return await update.message.reply_text("❌ فقط سازنده.")
     text = " ".join(context.args)
-    if "|" not in text:
-        await update.message.reply_text("فرمت: /learn کلمه | پاسخ\nمثال: /learn سلام | سلام خوبی؟")
-        return
-    trigger, response = text.split("|", 1)
-    trigger = trigger.strip()
-    response = response.strip()
-    if not trigger or not response:
-        await update.message.reply_text("کلمه و پاسخ نمی‌تونن خالی باشن.")
-        return
+    if "|" not in text: return await update.message.reply_text("/learn کلمه | پاسخ")
+    trigger, response = text.split("|",1)
+    trigger = trigger.strip(); response = response.strip()
+    if not trigger or not response: return await update.message.reply_text("کلمه و پاسخ خالی نباشن.")
     db["learned"][trigger] = response
     save_db()
-    await update.message.reply_text(f"✅ یادم اومد هر وقت کسی بگه «{trigger}» بگم:\n{response}")
+    await update.message.reply_text(f"✅ یادم اومد به «{trigger}» بگم:\n{response}")
 
 async def unlearn_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != OWNER_ID:
-        await update.message.reply_text("❌ فقط سازنده.")
-        return
-    if not context.args:
-        await update.message.reply_text("/unlearn کلمه")
-        return
+    if update.effective_user.id != OWNER_ID: return await update.message.reply_text("❌ فقط سازنده.")
+    if not context.args: return await update.message.reply_text("/unlearn کلمه")
     trigger = context.args[0]
     if trigger in db["learned"]:
-        del db["learned"][trigger]
-        save_db()
-        await update.message.reply_text(f"کلمه «{trigger}» از حافظه پاک شد.")
+        del db["learned"][trigger]; save_db()
+        await update.message.reply_text(f"«{trigger}» از حافظه پاک شد.")
     else:
         await update.message.reply_text("این کلمه تو حافظه نیست.")
 
-# ================== مدیریت جُک‌ها ==================
 async def addjoke_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != OWNER_ID:
-        await update.message.reply_text("❌ فقط سازنده می‌تونه جُک اضافه کنه.")
-        return
-    joke_text = " ".join(context.args)
-    if not joke_text:
-        await update.message.reply_text("/addjoke متن جُک")
-        return
-    db["jokes"].append(joke_text)
-    save_db()
+    if update.effective_user.id != OWNER_ID: return await update.message.reply_text("❌ فقط سازنده.")
+    joke = " ".join(context.args)
+    if not joke: return await update.message.reply_text("/addjoke متن جُک")
+    db["jokes"].append(joke); save_db()
     await update.message.reply_text(f"✅ جُک جدید ذخیره شد. (شماره {len(db['jokes'])})")
 
 async def deljoke_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != OWNER_ID:
-        await update.message.reply_text("❌ فقط سازنده.")
-        return
-    if not context.args:
-        await update.message.reply_text("/deljoke شماره (مثال 1)")
-        return
+    if update.effective_user.id != OWNER_ID: return await update.message.reply_text("❌ فقط سازنده.")
+    if not context.args: return await update.message.reply_text("/deljoke شماره")
     try:
-        index = int(context.args[0]) - 1
-        if 0 <= index < len(db["jokes"]):
-            removed = db["jokes"].pop(index)
-            save_db()
+        idx = int(context.args[0]) - 1
+        if 0 <= idx < len(db["jokes"]):
+            removed = db["jokes"].pop(idx); save_db()
             await update.message.reply_text(f"جُک حذف شد: {removed}")
-        else:
-            await update.message.reply_text("شماره نامعتبر.")
-    except:
-        await update.message.reply_text("عدد وارد کن.")
+        else: await update.message.reply_text("شماره نامعتبر.")
+    except: await update.message.reply_text("عدد وارد کن.")
 
 async def list_jokes_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     jokes = db["jokes"]
-    if not jokes:
-        await update.message.reply_text("هنوز هیچ جُکی ذخیره نشده.")
-        return
-    txt = "📋 لیست جُک‌ها:\n"
-    for i, joke in enumerate(jokes, 1):
-        txt += f"{i}. {joke}\n"
+    if not jokes: return await update.message.reply_text("هنوز هیچ جُکی نیست.")
+    txt = "📋 لیست جُک‌ها:\n" + "\n".join(f"{i+1}. {j}" for i,j in enumerate(jokes))
     await update.message.reply_text(txt[:4000])
 
-# ================== مدیریت پیام‌ها (با یادگیری و جُک) ==================
+# ================== مدیریت پیام‌ها (با تشخیص زیررشته) ==================
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message
     chat = update.effective_chat
@@ -330,11 +261,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(user.id)
     text = msg.text or msg.caption or ""
 
-    # ثبت‌نام و چک‌های امنیتی
     register_user(user_id, user.username or "", user.first_name or "")
     u = get_user(user_id)
-    if u and u["blocked"]:
-        return
+    if u and u["blocked"]: return
     if is_muted(user_id):
         try: await msg.delete()
         except: pass
@@ -342,24 +271,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     log_action(user_id, "message", text[:50])
 
-    # 1. بررسی لینک (گروه) – حذف خودکار
-    if chat.type in ["group", "supergroup"] and re.search(r'https?://', text):
+    # ضد لینک (گروه)
+    if chat.type in ["group","supergroup"] and re.search(r'https?://', text):
         try:
             await msg.delete()
             await msg.reply_text("❌ لینک ممنوع.", quote=True)
         except: pass
         return
 
-    # 2. ضد اسپم (گروه)
-    if chat.type in ["group", "supergroup"] and is_spam(user_id):
+    # ضد اسپم (گروه)
+    if chat.type in ["group","supergroup"] and is_spam(user_id):
         try:
             await msg.delete()
             await msg.reply_text("❌ اسپم نکنید.")
         except: pass
         return
 
-    # 3. فیلتر کلمات نامناسب (گروه)
-    if chat.type in ["group", "supergroup"]:
+    # فیلتر کلمات نامناسب (گروه)
+    if chat.type in ["group","supergroup"]:
         for bw in db["bad_words"]:
             if bw in text.lower():
                 try:
@@ -368,15 +297,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 except: pass
                 return
 
-    # 4. امتیازدهی
     add_score(user_id)
 
-    # 5. پاسخ به کلمات یادگرفته شده (یادگیری)
-    if text in db["learned"]:
-        await msg.reply_text(db["learned"][text])
+    # پشتیبانی
+    if text == "پشتیبانی":
+        await msg.reply_text(f"📞 ارتباط با سازنده:\n{ADMIN_USERNAME}")
         return
 
-    # 6. جُک گفتن
+    # *** جدید *** چک زیررشته برای کلمات یادگرفته‌شده
+    for trigger, response in db["learned"].items():
+        if trigger in text:   # هرجا توی پیام بود
+            await msg.reply_text(response)
+            return
+
+    # جُک
     if text in ["جک", "جوک", "جوک بگو"]:
         if db["jokes"]:
             await msg.reply_text(random.choice(db["jokes"]))
@@ -384,7 +318,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await msg.reply_text("هنوز هیچ جُکی یادم ندادی! 🥲")
         return
 
-    # 7. دستورات همیشگی
+    # دستورات همیشگی
     if text == "سازنده":
         await msg.reply_text("یاسین چنگیزی ساخته منو ❤️")
     elif text == "تاس":
@@ -400,8 +334,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text.startswith("یادداشت:"):
         note = text.replace("یادداشت:", "", 1).strip()
         if note:
-            u["notes"].append(note)
-            save_db()
+            u["notes"].append(note); save_db()
             await msg.reply_text("✅ ذخیره شد.")
     elif text == "یادداشت‌ها":
         notes = u.get("notes", [])
@@ -413,7 +346,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("👤 سازنده", callback_data="creator"), InlineKeyboardButton("ℹ️ راهنما", callback_data="help")],
         ]
         await msg.reply_text("منو:", reply_markup=InlineKeyboardMarkup(keyboard))
-    elif text == "قرعه‌کشی" and chat.type in ["group", "supergroup"]:
+    elif text == "قرعه‌کشی" and chat.type in ["group","supergroup"]:
         try:
             members = [m.user.id async for m in context.bot.get_chat_members(chat.id) if not m.user.is_bot]
             winner = random.choice(members)
@@ -422,9 +355,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif msg.photo:
         await msg.reply_text("📸 عکس دریافت شد.")
     else:
-        await msg.reply_text(f"پیام شما: {text}")
+        await msg.reply_text("پیام شما دریافت شد. اگر نیاز به راهنمایی دارید، /help رو بزنید. 😊")
 
-# ================== دکمه‌ها (بدون تغییر) ==================
+# ================== دکمه‌ها ==================
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -444,9 +377,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         txt = "🏆 برترین‌ها:\n" + "\n".join(f"{i+1}. {r[1]['first_name']} ({r[1]['score']})" for i, r in enumerate(top)) if top else "خالی."
         await query.message.reply_text(txt)
     elif data == "help":
-        await query.message.reply_text("/start\n/admin\n/learn\n/jokes\nجک - تاس - دارت - امتیاز - تاپ - منو")
+        await query.message.reply_text("/start\n/admin\n/learn\n/jokes\nپشتیبانی\nجک - تاس - دارت - امتیاز - تاپ - منو")
 
-# ================== خوش‌آمدگویی (گروه) ==================
+# ================== خوش‌آمدگویی ==================
 async def welcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for member in update.message.new_chat_members:
         if not member.is_bot:
@@ -471,7 +404,7 @@ def main():
     app.add_handler(MessageHandler(filters.PHOTO, handle_message))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
-    print("✅ ربات با قابلیت یادگیری و جُک‌گویی اجرا شد.")
+    print("✅ ربات با تشخیص کلمات در جمله اجرا شد.")
     app.run_polling()
 
 if __name__ == "__main__":
