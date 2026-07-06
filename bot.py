@@ -160,7 +160,7 @@ def get_main_menu_keyboard(user_id: int = None):
         [InlineKeyboardButton("🛠 ابزارها", callback_data="menu_tools")],
         [InlineKeyboardButton("👤 پروفایل", callback_data="menu_profile")],
         [InlineKeyboardButton("👥 امکانات گروهی", callback_data="menu_group")],
-        [InlineKeyboardButton("💬 چت ناشناس", callback_data="anon_chat")],
+        [InlineKeyboardButton("💬 ارتباط", callback_data="anon_chat")],
     ]
     if user_id == OWNER_ID:
         keyboard.append([InlineKeyboardButton("👑 پنل ادمین", callback_data="menu_admin")])
