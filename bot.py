@@ -325,26 +325,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 ● `/storyend` – پایان داستان
 ● **خودکار:** ضد لینک، ضد اسپم، فیلتر کلمات نامناسب، خوش‌آمدگویی""",
 
-        """👑 **پنل سازنده (فقط مالک)**
-● `/admin stats` – آمار کاربران
-● `/admin broadcast متن` – پیام همگانی
-● `/admin block/unblock user_id`
-● `/admin badword add/remove کلمه`
-● `/admin logs` – مشاهده لاگ‌ها
-● `/learn کلمه | پاسخ` – یاد دادن حرف
-● `/unlearn کلمه` – حذف کلمه
-● `/addjoke متن` – افزودن جوک (همگانی)
-● `/deljoke شماره` – حذف جوک (مالک)
-● `/jokes` – لیست جوک‌ها
-● `/addquote متن` – افزودن نقل‌قول (همگانی)
-● `/delquote شماره` – حذف نقل‌قول (مالک)
-● `/quotes` – لیست نقل‌قول‌ها
-● `/additem نام قیمت` – افزودن آیتم
-● `/removeitem شماره` – حذف آیتم
-● `/editprice شماره قیمت` – تغییر قیمت
-● `/schedule` – زمان‌بندی پیام
-● `/bot on/off` – خاموش/روشن ربات
-● `/dailyreward` – هدیه ۵۰ امتیازی
+        """
 
 💬 **چت ناشناس**
 ● `/anon` – فعال‌سازی
@@ -354,7 +335,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 🎁 **سیستم امتیازدهی**
 ● هر پیام: ۱ امتیاز
 ● دعوت دوستان: ۲۰ امتیاز
-● کد ویژه yasin: ۵۰۰ امتیاز
+● کد تخفیف افتتاح ربات yasin: ۵۰۰ امتیاز
 ● حدس کلمه: ۵۰ | مسابقه ریاضی: ۲۰
 ● حدس شخصیت: ۳۰ | تولد: ۵۰
 ● هدیه روزانه: ۵۰ به نفر اول"""
