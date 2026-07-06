@@ -10,7 +10,7 @@ from telegram.ext import Application, MessageHandler, CommandHandler, CallbackQu
 # ================== تنظیمات ==================
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 OWNER_ID = 8391932958          # ⚠️ آیدی عددی خودت
-ADMIN_USERNAME = "09180010320"   # ⚠️ یوزرنیم تلگرامت
+ADMIN_USERNAME = "@YasinChangizi"   # ⚠️ یوزرنیم یا آیدی خودت
 NAVASAN_API_KEY = os.environ.get("NAVASAN_API_KEY", "")
 
 # ================== دیتابیس ==================
@@ -47,8 +47,11 @@ db.setdefault("quests", {
 })
 db.setdefault("group_games", {})
 db.setdefault("inline_polls", {})
-db.setdefault("bot_active", True)            # جدید: وضعیت ربات
-db.setdefault("daily_reward_date", "")       # جدید: تاریخ آخرین هدیه
+db.setdefault("bot_active", True)
+db.setdefault("daily_reward_date", "")
+db.setdefault("warnings", {})
+db.setdefault("guess_character", {})
+db.setdefault("active_chats", [])
 
 def save_db():
     with open(DB_FILE, "w", encoding="utf-8") as f:
@@ -132,7 +135,7 @@ def is_spam(user_id: str) -> bool:
     user_last_messages[user_id].append(now)
     return False
 
-# ================== بررسی خاموش بودن ربات ==================
+# ================== خاموش/روشن ==================
 async def check_bot_active(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not db["bot_active"] and update.effective_user.id != OWNER_ID:
         await update.message.reply_text("⛔ ربات به دستور سازنده خاموش است.")
@@ -147,24 +150,18 @@ def get_main_menu_keyboard():
         [InlineKeyboardButton("👤 پروفایل", callback_data="menu_profile")],
         [InlineKeyboardButton("ℹ️ راهنما", callback_data="help")],
     ])
-
 def get_games_keyboard():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🎲 تاس", callback_data="dice"), InlineKeyboardButton("🎯 دارت", callback_data="dart")],
         [InlineKeyboardButton("✂️ سنگ کاغذ قیچی", callback_data="rps_menu")],
         [InlineKeyboardButton("🔙 بازگشت", callback_data="menu_main")],
     ])
-
 def get_tools_keyboard():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("💵 دلار", callback_data="price_dollar"),
-         InlineKeyboardButton("🥇 سکه", callback_data="price_coin"),
-         InlineKeyboardButton("💍 طلا", callback_data="price_gold")],
-        [InlineKeyboardButton("📋 نظرسنجی", callback_data="menu_pollbtn")],
-        [InlineKeyboardButton("⏰ یادآوری", callback_data="menu_remind")],
+        [InlineKeyboardButton("💵 دلار", callback_data="price_dollar"), InlineKeyboardButton("🥇 سکه", callback_data="price_coin"), InlineKeyboardButton("💍 طلا", callback_data="price_gold")],
+        [InlineKeyboardButton("📋 نظرسنجی", callback_data="menu_pollbtn"), InlineKeyboardButton("⏰ یادآوری", callback_data="menu_remind")],
         [InlineKeyboardButton("🔙 بازگشت", callback_data="menu_main")],
     ])
-
 def get_profile_keyboard():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("⭐ امتیاز", callback_data="score"), InlineKeyboardButton("🏆 تاپ", callback_data="top")],
@@ -172,37 +169,85 @@ def get_profile_keyboard():
         [InlineKeyboardButton("🔙 بازگشت", callback_data="menu_main")],
     ])
 
-# ================== دستورات عمومی ==================
+# ================== دستور start ==================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     referrer_id = context.args[0] if context.args else None
     register_user(str(user.id), user.username or "", user.first_name or "", referrer_id)
     welcome_text = """
-🤖 به Diminol-bot خوش اومدی! 
-من ربات همه‌فن‌حریف تو، ساخته‌ی یاسین چنگیزی ❤️
+🤖 **به Diminol-bot خوش اومدی!**
+ساخته‌ی یاسین چنگیزی ❤️
 
-✨ کلی قابلیت جدید:
-🎮 /guessword → بازی حدس کلمه (بدون /guess)
-🐣 /pet → پت مجازی
-🎯 /quests → مأموریت‌های روزانه
-💰 دلار / سکه / طلا → قیمت لحظه‌ای
-📊 /pollbtn → نظرسنجی دکمه‌ای
-📥 /insta → دانلود از اینستاگرام (بزودی)
-⏯ /bot on|off → خاموش/روشن ربات (فقط سازنده)
-🎁 /dailyreward → هدیه روزانه به برترین کاربر
+📌 **راهنمای کامل دستورات:**
 
-و همه قابلیت‌های قبلی: /rps, /fal, /challenge, /referral, /diary, /shop, /jokes, /learn و...
-برای دیدن منوی دکمه‌ای، بنویس «منو».
-    """
+🎮 **سرگرمی و بازی:**
+• `/rps` – بازی سنگ-کاغذ-قیچی
+• `/fal` – فال حافظ با تفسیر
+• `/challenge` – دریافت چالش روزانه
+• `/guessword` – شروع بازی حدس کلمه (گروه)
+• `/pet` – خرید، غذا دادن و وضعیت پت مجازی
+• `/quests` – مشاهدهٔ مأموریت‌های روزانه
+• `/claim شماره` – تحویل مأموریت و دریافت جایزه
+• `تاس` یا `دارت` – انداختن تاس یا دارت
+• `جک` / `جوک` / `جوک بگو` – یک جوک تصادفی
+• `استیکر` – دریافت یک استیکر تصادفی از آرشیو
+• `گیف` – دریافت یک گیف تصادفی از آرشیو
+• `قرعه‌کشی` – انتخاب تصادفی یک عضو (گروه)
+• `/duel @یوزرنیم` – بازی دوز (گروه)
+• `/guesswho` – بازی حدس شخصیت (گروه)
+
+🛠 **ابزارهای کاربردی:**
+• `دلار` / `سکه` / `طلا` – قیمت لحظه‌ای
+• `ساعت` – نمایش ساعت فعلی
+• `تاریخ` / `امروز` – تاریخ شمسی
+• `نقل‌قول` / `جمله` – یک جملهٔ زیبا
+• `/poll سوال | گزینه‌ها` – نظرسنجی تلگرامی
+• `/pollbtn سوال | گزینه‌ها` – نظرسنجی دکمه‌ای
+• `/remind 10m متن` – تنظیم یادآور (s/m/h)
+• `تایمر 5m` – تایمر ساده (بدون متن)
+• `/insta` – دانلود از اینستاگرام (بزودی)
+• `یادداشت: متن` – ذخیرهٔ یادداشت با تاریخ
+• `یادداشت‌ها` – مشاهدهٔ یادداشت‌ها
+• `/clearnotes` – پاک کردن همهٔ یادداشت‌ها
+
+👤 **پروفایل و امتیازات:**
+• `امتیاز` – امتیاز و سطح شما
+• `تاپ` – ۱۰ کاربر برتر
+• `/referral` – کد و لینک دعوت
+• `/shop` – فروشگاه آیتم‌ها
+• `/buy شماره` – خرید آیتم با امتیاز
+• `/items` – آیتم‌های خریداری‌شده
+• `/whois @یوزرنیم` – اطلاعات کاربر
+
+👥 **امکانات گروهی:**
+• `/mute user_id دقیقه` – سکوت موقت کاربر (ادمین)
+• `/warn user_id دلیل` – اخطار به کاربر (ادمین، ۳ اخطار = mute)
+• `/warns user_id` – مشاهدهٔ اخطارها
+• `/resetwarn user_id` – پاک کردن اخطارها
+• `/diary متن` – ثبت خاطره در دفتر گروه
+• `/diary` – مشاهدهٔ آخرین خاطرات گروه
+• `تالار` – تالار افتخارات (سنجاق پیام)
+• **ضد لینک، ضد اسپم، فیلتر کلمات نامناسب** (خودکار)
+
+👑 **پنل سازنده (فقط مالک):**
+• `/admin stats` – آمار کاربران
+• `/admin broadcast متن` – پیام همگانی
+• `/admin block/unblock user_id` – مسدود/آزاد کردن
+• `/admin badword add/remove کلمه` – مدیریت کلمات فیلتر
+• `/admin logs` – مشاهدهٔ لاگ فعالیت‌ها
+• `/learn کلمه | پاسخ` – یاد دادن پاسخ به ربات
+• `/unlearn کلمه` – پاک کردن کلمه از حافظه
+• `/addjoke متن` / `/deljoke شماره` – مدیریت جوک‌ها
+• `/bot on` / `/bot off` – خاموش/روشن کردن ربات
+• `/dailyreward` – هدیهٔ ۵۰ امتیازی به کاربر برتر
+
+💡 **نکته:** اگر ربات پیامی را بلد نباشد، سکوت می‌کند.
+برای باز شدن منوی دکمه‌ای، کافی‌ست بنویسید: `منو`
+"""
     await update.message.reply_text(welcome_text)
-
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if await check_bot_active(update, context): return
-    await update.message.reply_text("برای راهنمای کامل /start رو بزن.")
 
 # ================== پنل ادمین ==================
 async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # نیازی به چک خاموشی نیست
     if update.effective_user.id != OWNER_ID:
         await update.message.reply_text("❌ دسترسی غیرمجاز.")
         return
@@ -245,39 +290,28 @@ async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("دستور نامعتبر.")
 
-# ================== خاموش/روشن ربات ==================
+# ================== خاموش/روشن و هدیه روزانه ==================
 async def bot_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != OWNER_ID:
-        await update.message.reply_text("❌ فقط سازنده.")
-        return
-    if not context.args or context.args[0] not in ("on", "off"):
-        await update.message.reply_text("استفاده: /bot on یا /bot off")
-        return
-    state = context.args[0] == "on"
-    db["bot_active"] = state
+    if update.effective_user.id != OWNER_ID: return await update.message.reply_text("❌ فقط سازنده.")
+    if not context.args or context.args[0] not in ("on", "off"): return await update.message.reply_text("/bot on / off")
+    db["bot_active"] = context.args[0] == "on"
     save_db()
-    await update.message.reply_text(f"✅ ربات {'روشن' if state else 'خاموش'} شد.")
+    await update.message.reply_text(f"✅ ربات {'روشن' if db['bot_active'] else 'خاموش'} شد.")
 
-# ================== هدیه روزانه ==================
 async def daily_reward(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != OWNER_ID:
-        await update.message.reply_text("❌ فقط سازنده.")
-        return
+    if update.effective_user.id != OWNER_ID: return await update.message.reply_text("❌ فقط سازنده.")
     today = datetime.now().strftime("%Y-%m-%d")
-    if db["daily_reward_date"] == today:
-        await update.message.reply_text("امروز جایزه داده شده. فردا دوباره.")
-        return
+    if db["daily_reward_date"] == today: return await update.message.reply_text("امروز جایزه داده شده.")
     top = get_top_users(1)
     if top:
         winner_id = top[0][0]
         add_score(winner_id, 50)
-        db["daily_reward_date"] = today
-        save_db()
-        await update.message.reply_text(f"🎉 ۵۰ امتیاز به کاربر برتر ({top[0][1]['first_name']}) هدیه داده شد!")
+        db["daily_reward_date"] = today; save_db()
+        await update.message.reply_text(f"🎉 ۵۰ امتیاز به {top[0][1]['first_name']} داده شد!")
     else:
-        await update.message.reply_text("هیچ کاربری وجود نداره.")
+        await update.message.reply_text("کاربری نیست.")
 
-# ================== Mute / Poll / Remind (چک خاموشی) ==================
+# ================== Mute ==================
 async def mute_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await check_bot_active(update, context): return
     chat = update.effective_chat; user = update.effective_user
@@ -295,6 +329,7 @@ async def mute_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save_db()
     await update.message.reply_text(f"🔇 کاربر {target_id} برای {minutes} دقیقه بی‌صدا شد.")
 
+# ================== Poll ==================
 async def poll_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await check_bot_active(update, context): return
     text = " ".join(context.args)
@@ -304,6 +339,7 @@ async def poll_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(options)<2: return await update.message.reply_text("حداقل ۲ گزینه.")
     await update.message.reply_poll(question=question.strip(), options=options, is_anonymous=True)
 
+# ================== Remind ==================
 async def remind(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await check_bot_active(update, context): return
     if not context.args: return await update.message.reply_text("/remind 10m پیام")
@@ -322,7 +358,7 @@ async def remind(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"خطا: {e}")
 
-# ================== یادگیری و جُک (چک خاموشی) ==================
+# ================== یادگیری و جُک ==================
 async def learn_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await check_bot_active(update, context): return
     if update.effective_user.id != OWNER_ID: return await update.message.reply_text("❌ فقط سازنده.")
@@ -373,7 +409,7 @@ async def list_jokes_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
     txt = "📋 لیست جُک‌ها:\n" + "\n".join(f"{i+1}. {j}" for i,j in enumerate(jokes))
     await update.message.reply_text(txt[:4000])
 
-# ================== استیکر، گیف، فروشگاه و ... ==================
+# ================== استیکر، گیف ==================
 async def sticker_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.sticker:
         db["stickers"].append(update.message.sticker.file_id)
@@ -384,6 +420,7 @@ async def animation_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db["animations"].append(update.message.animation.file_id)
         save_db()
 
+# ================== فروشگاه ==================
 async def shop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await check_bot_active(update, context): return
     shop = db["shop"]
@@ -424,6 +461,7 @@ async def my_items_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("هنوز چیزی نخریدی. /shop")
 
+# ================== Referral, Diary, Fal, Challenge ==================
 async def referral_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await check_bot_active(update, context): return
     user_id = str(update.effective_user.id)
@@ -462,7 +500,6 @@ fal_list = [
     {"poem": "الا یا ایها الساقی ادر کأساً و ناولها / که عشق آسان نمود اول ولی افتاد مشکل‌ها", "desc": "مسیر عشق دشوار است"},
     {"poem": "در ازل پرتو حسنت ز تجلی دم زد / عشق پیدا شد و آتش به همه عالم زد", "desc": "آغاز خلقت از عشق"},
 ]
-
 async def fal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await check_bot_active(update, context): return
     fal = random.choice(fal_list)
@@ -473,11 +510,6 @@ quotes = [
     "تنها راه انجام کار بزرگ، عشق به کاری است که انجام می‌دهید. - استیو جابز",
     "آینده به کسانی تعلق دارد که به زیبایی رویاهایشان باور دارند. - النور روزولت",
 ]
-
-async def challenge_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if await check_bot_active(update, context): return
-    await update.message.reply_text(f"🎯 چالش امروز:\n{random.choice(daily_challenges)}")
-
 daily_challenges = [
     "امروز ۳ تا تاس بنداز و مجموعش رو بگو 🎲",
     "یه جوک بگو و ببین چند لایک می‌گیری 😄",
@@ -485,9 +517,12 @@ daily_challenges = [
     "امروز ۱۰ دقیقه ورزش کن و به ربات بگو انجام دادی 💪",
     "یه عکس از غذات بگیر و بفرست 📸",
 ]
+async def challenge_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await check_bot_active(update, context): return
+    await update.message.reply_text(f"🎯 چالش امروز:\n{random.choice(daily_challenges)}")
 
+# ================== RPS ==================
 RPS_OPTIONS = {"rock": "🪨 سنگ", "paper": "📄 کاغذ", "scissors": "✂️ قیچی"}
-
 async def rps_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await check_bot_active(update, context): return
     keyboard = [
@@ -508,7 +543,7 @@ async def handle_rps(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         (user_choice == "paper" and bot_choice == "rock") else "😞 باختی!")
     await query.edit_message_text(f"تو: {RPS_OPTIONS[user_choice]}\nربات: {RPS_OPTIONS[bot_choice]}\n{result}")
 
-# ================== بازی حدس کلمه (با دکمه پایان) ==================
+# ================== بازی حدس کلمه ==================
 WORDS = ["شیر", "خورشید", "گل", "کتاب", "پلنگ", "دریا", "ستاره", "آسمان", "ماه", "زمین", "کوه", "آبشار", "مدرسه", "پیتزا", "برف", "بهار", "شکلات", "تلفن", "موسیقی", "فیلم"]
 
 async def guessword_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -516,14 +551,14 @@ async def guessword_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     if chat.type not in ["group","supergroup"]: return await update.message.reply_text("فقط گروه.")
     game = db["group_games"].setdefault(str(chat.id), {})
-    if game.get("word"): return await update.message.reply_text("یه بازی در حال انجامه! کلمه رو حدس بزن (بدون /guess).")
+    if game.get("word"): return await update.message.reply_text("یه بازی در حال انجامه!")
     word = random.choice(WORDS)
     hint = "🔤 " + " ".join("_" for _ in word)
     game.update({"word": word, "hint": hint, "guesses": []})
     save_db()
     keyboard = [[InlineKeyboardButton("🚫 پایان بازی", callback_data=f"endgame_{chat.id}")]]
     await update.message.reply_text(
-        f"🎮 بازی حدس کلمه شروع شد!\n{hint} ({len(word)} حرف)\nحدس خودت رو مستقیماً تایپ کن.",
+        f"🎮 بازی حدس کلمه شروع شد!\n{hint} ({len(word)} حرف)\nحدس خودت رو مستقیماً تایپ کن (بدون /guess).",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -533,7 +568,7 @@ async def guess_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args: return await update.message.reply_text("/guess کلمه")
     guess = " ".join(context.args).strip()
     game = db["group_games"].get(str(chat.id))
-    if not game or not game.get("word"): return await update.message.reply_text("بازی فعال نیست. /guessword")
+    if not game or not game.get("word"): return await update.message.reply_text("بازی فعال نیست.")
     await process_guess(update.message, user, guess, game, str(chat.id))
 
 async def end_game_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -563,7 +598,7 @@ async def process_guess(msg, user, guess, game, chat_id_str):
         await msg.reply_text(f"❌ اشتباه! {hint}")
     save_db()
 
-# ================== پت و مأموریت‌ها ==================
+# ================== پت و مأموریت ==================
 PET_PRICES = {"جوجه": ("🐣 جوجه", 100), "سگ": ("🐶 سگ", 200), "گربه": ("🐱 گربه", 250)}
 
 async def pet_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -633,7 +668,7 @@ async def claim_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
     await update.message.reply_text("شماره نامعتبر.")
 
-# ================== قیمت ارز/طلا (نواسان) ==================
+# ================== قیمت ارز/طلا ==================
 async def price_message(update: Update, context: ContextTypes.DEFAULT_TYPE, item: str = None):
     if not NAVASAN_API_KEY:
         await update.message.reply_text("کلید API نواسان تنظیم نشده. با سازنده تماس بگیرید.")
@@ -654,10 +689,10 @@ async def price_message(update: Update, context: ContextTypes.DEFAULT_TYPE, item
         else:
             return
         await update.message.reply_text(txt)
-    except Exception as e:
+    except:
         await update.message.reply_text("⚠️ خطا در دریافت قیمت. بعداً تلاش کنید.")
 
-# ================== نظرسنجی دکمه‌ای ==================
+# ================== PollBtn ==================
 async def pollbtn_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await check_bot_active(update, context): return
     text = " ".join(context.args)
@@ -684,15 +719,262 @@ async def pollbtn_vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save_db()
     await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
 
-# ================== اینستاگرام (فعلاً غیرفعال) ==================
+# ================== Insta (غیرفعال) ==================
 async def insta_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("📥 متأسفانه در حال حاضر سرور دانلود اینستاگرام در دسترس نیست. به‌زودی جایگزین می‌شود.")
 
-# ================== مدیریت پیام‌ها (اصلی) ==================
+# ================== سیستم اخطار ==================
+async def warn_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await check_bot_active(update, context): return
+    chat = update.effective_chat; user = update.effective_user
+    if chat.type not in ["group","supergroup"]: return await update.message.reply_text("فقط گروه.")
+    member = await context.bot.get_chat_member(chat.id, user.id)
+    if member.status not in ["administrator","creator"] and user.id != OWNER_ID: return await update.message.reply_text("❌ فقط ادمین.")
+    if not context.args or len(context.args) < 2: return await update.message.reply_text("/warn user_id دلیل")
+    target_id = context.args[0]; reason = " ".join(context.args[1:])
+    warnings = db["warnings"].setdefault(str(chat.id), {}).setdefault(target_id, [])
+    warnings.append({"reason": reason, "time": datetime.now().strftime("%Y-%m-%d %H:%M")})
+    save_db()
+    count = len(warnings)
+    if count >= 3:
+        target = get_user(target_id)
+        if target:
+            target["muted_until"] = (datetime.now() + timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
+            save_db()
+        await update.message.reply_text(f"🚫 کاربر {target_id} ۳ اخطار گرفت و ۱۰ دقیقه بی‌صدا شد.")
+    else:
+        await update.message.reply_text(f"⚠️ اخطار {count}/3 به کاربر {target_id}: {reason}")
+
+async def warns_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await check_bot_active(update, context): return
+    if not context.args: return await update.message.reply_text("/warns user_id")
+    target_id = context.args[0]
+    warnings = db["warnings"].get(str(update.effective_chat.id), {}).get(target_id, [])
+    if warnings:
+        txt = "\n".join(f"{i+1}. {w['time']} - {w['reason']}" for i, w in enumerate(warnings))
+        await update.message.reply_text(f"📋 اخطارهای {target_id}:\n{txt}")
+    else:
+        await update.message.reply_text("این کاربر اخطاری ندارد.")
+
+async def reset_warns(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await check_bot_active(update, context): return
+    if not context.args: return await update.message.reply_text("/resetwarn user_id")
+    target_id = context.args[0]
+    chat_id = str(update.effective_chat.id)
+    if chat_id in db["warnings"] and target_id in db["warnings"][chat_id]:
+        del db["warnings"][chat_id][target_id]
+        save_db()
+        await update.message.reply_text("اخطارها پاک شد.")
+    else:
+        await update.message.reply_text("اخطاری برای این کاربر وجود ندارد.")
+
+# ================== بازی دوز ==================
+TICTACTOE_GAMES = {}
+
+def check_winner(board):
+    for i in range(0, 9, 3):
+        if board[i] == board[i+1] == board[i+2] != " ": return board[i]
+    for i in range(3):
+        if board[i] == board[i+3] == board[i+6] != " ": return board[i]
+    if board[0] == board[4] == board[8] != " ": return board[0]
+    if board[2] == board[4] == board[6] != " ": return board[2]
+    return None
+
+async def duel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await check_bot_active(update, context): return
+    chat = update.effective_chat
+    if chat.type not in ["group","supergroup"]: return await update.message.reply_text("فقط گروه.")
+    if not context.args: return await update.message.reply_text("/duel @یوزرنیم")
+    opponent = context.args[0]
+    try:
+        member = await context.bot.get_chat_member(chat.id, update.message.entities[0].user.id)
+        player2_id = member.user.id
+        player2_name = member.user.first_name
+    except:
+        await update.message.reply_text("نفهمیدم کیو میگی. دوباره با mention تلاش کن.")
+        return
+    player1 = update.effective_user
+    game_id = str(chat.id)
+    TICTACTOE_GAMES[game_id] = {
+        "board": [" "] * 9,
+        "turn": player1.id,
+        "p1": player1.id,
+        "p2": player2_id,
+        "p1_name": player1.first_name,
+        "p2_name": player2_name,
+        "moves": 0
+    }
+    await update.message.reply_text(
+        f"⚔️ {player1.first_name} 🆚 {player2_name}\nنوبت {player1.first_name} (❌)",
+        reply_markup=tic_tac_toe_keyboard(game_id)
+    )
+
+def tic_tac_toe_keyboard(game_id):
+    board = TICTACTOE_GAMES[game_id]["board"]
+    buttons = []
+    for i in range(0, 9, 3):
+        row = []
+        for j in range(3):
+            idx = i + j
+            text = board[idx] if board[idx] != " " else str(idx+1)
+            row.append(InlineKeyboardButton(text, callback_data=f"ttt_{game_id}_{idx}"))
+        buttons.append(row)
+    return InlineKeyboardMarkup(buttons)
+
+async def tic_tac_toe_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data.split("_")
+    game_id = data[1]
+    idx = int(data[2])
+    game = TICTACTOE_GAMES.get(game_id)
+    if not game: return await query.edit_message_text("بازی تمام شده.")
+    if query.from_user.id != game["turn"]:
+        return await query.answer("نوبت تو نیست!", show_alert=True)
+    if game["board"][idx] != " ":
+        return await query.answer("خانه پر است!", show_alert=True)
+    symbol = "❌" if game["turn"] == game["p1"] else "⭕"
+    game["board"][idx] = symbol
+    game["moves"] += 1
+    winner = check_winner(game["board"])
+    if winner:
+        del TICTACTOE_GAMES[game_id]
+        await query.edit_message_text(f"🏁 برنده: {winner}!", reply_markup=None)
+        return
+    elif game["moves"] == 9:
+        del TICTACTOE_GAMES[game_id]
+        await query.edit_message_text("🤝 مساوی!", reply_markup=None)
+        return
+    game["turn"] = game["p2"] if game["turn"] == game["p1"] else game["p1"]
+    next_player = game["p1_name"] if game["turn"] == game["p1"] else game["p2_name"]
+    await query.edit_message_text(
+        f"⚔️ {game['p1_name']} 🆚 {game['p2_name']}\nنوبت {next_player}",
+        reply_markup=tic_tac_toe_keyboard(game_id)
+    )
+
+# ================== /whois ==================
+async def whois_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await check_bot_active(update, context): return
+    if not context.args:
+        return await update.message.reply_text("/whois @یوزرنیم یا user_id")
+    target = context.args[0]
+    if target.startswith("@"):
+        target_user = None
+        for uid, u in db["users"].items():
+            if u["username"] and u["username"].lower() == target[1:].lower():
+                target_user = (uid, u)
+                break
+        if not target_user:
+            return await update.message.reply_text("کاربر پیدا نشد.")
+    else:
+        u = get_user(target)
+        if not u: return await update.message.reply_text("کاربر پیدا نشد.")
+        target_user = (target, u)
+    uid, u = target_user
+    pet = db["pets"].get(uid, None)
+    items = db["user_items"].get(uid, [])
+    notes = u.get("notes", [])
+    txt = f"👤 {u['first_name']} (@{u['username']})\n"
+    txt += f"⭐ امتیاز: {u['score']} | سطح: {u['level']}\n"
+    txt += f"🐣 پت: {pet['type']} {pet['name']}" if pet else "بدون پت"
+    txt += f"\n🎁 آیتم‌ها: {', '.join(items) if items else 'ندارد'}"
+    txt += f"\n📒 یادداشت‌ها: {len(notes)} عدد"
+    await update.message.reply_text(txt)
+
+# ================== پاک کردن یادداشت‌ها ==================
+async def clear_notes(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await check_bot_active(update, context): return
+    user_id = str(update.effective_user.id)
+    u = get_user(user_id)
+    if u:
+        u["notes"] = []
+        save_db()
+        await update.message.reply_text("یادداشت‌ها پاک شدند.")
+    else:
+        await update.message.reply_text("ثبت‌نام نکردی.")
+
+# ================== تایمر ساده ==================
+async def handle_timer(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    msg = update.message
+    text = msg.text.strip()
+    if not text.startswith("تایمر "):
+        return False
+    args = text.replace("تایمر ", "", 1).strip()
+    if not args:
+        await msg.reply_text("فرمت: تایمر 5m")
+        return True
+    try:
+        unit = args[-1].lower()
+        amount = int(args[:-1])
+        if unit == 's': seconds = amount
+        elif unit == 'm': seconds = amount * 60
+        elif unit == 'h': seconds = amount * 3600
+        else:
+            await msg.reply_text("واحد نامعتبر (s/m/h)")
+            return True
+        await msg.reply_text(f"⏳ تایمر {amount}{unit} تنظیم شد.")
+        await asyncio.sleep(seconds)
+        await msg.reply_text("⏰ زمان تموم شد!")
+    except:
+        await msg.reply_text("فرمت اشتباه. مثال: تایمر 5m")
+    return True
+
+# ================== حدس شخصیت ==================
+CHARACTERS = ["هیتلر", "انیشتین", "شکسپیر", "پیکاسو", "کلمبوس", "ناپلئون", "تسلا", "موتسارت", "داوینچی", "گاندی"]
+async def guesswho_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await check_bot_active(update, context): return
+    chat = update.effective_chat
+    if chat.type not in ["group","supergroup"]: return await update.message.reply_text("فقط گروه.")
+    if db["guess_character"].get(str(chat.id)):
+        return await update.message.reply_text("یه بازی حدس شخصیت در جریانه.")
+    char = random.choice(CHARACTERS)
+    db["guess_character"][str(chat.id)] = char
+    save_db()
+    await update.message.reply_text(f"🎭 بازی حدس شخصیت شروع شد! یک شخصیت تاریخی انتخاب کردم. برای حدس بزنید:\n`حدس میزنم [نام]`", parse_mode="Markdown")
+
+async def handle_guess_character(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    msg = update.message
+    text = msg.text.strip()
+    if not text.startswith("حدس میزنم "):
+        return False
+    chat_id = str(update.effective_chat.id)
+    char = db["guess_character"].get(chat_id)
+    if not char:
+        await msg.reply_text("بازی حدس شخصیت فعال نیست. /guesswho")
+        return True
+    guess = text.replace("حدس میزنم ", "", 1).strip()
+    if guess == char:
+        add_score(str(update.effective_user.id), 30)
+        await msg.reply_text(f"🎉 {update.effective_user.first_name} برنده شد! شخصیت {char} بود. ۳۰ امتیاز گرفت.")
+        del db["guess_character"][chat_id]
+        save_db()
+    else:
+        await msg.reply_text("❌ اشتباهه! دوباره تلاش کن.")
+    return True
+
+# ================== سلام خودکار ==================
+async def auto_greet(context: ContextTypes.DEFAULT_TYPE):
+    greetings = [
+        "سلام دوستان! 🌞 امیدوارم روز خوبی داشته باشین.",
+        "سلام به همه! 🤗 چطورین؟",
+        "سلام! 🌸 فراموش نکنید به ربات سر بزنید.",
+    ]
+    msg = random.choice(greetings)
+    for chat_id in db["active_chats"]:
+        try:
+            await context.bot.send_message(chat_id=chat_id, text=msg)
+        except:
+            pass
+
+# ================== مدیریت پیام‌ها ==================
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await check_bot_active(update, context): return
     msg = update.message; chat = update.effective_chat; user = update.effective_user
     user_id = str(user.id); text = msg.text or msg.caption or ""
+
+    if chat.id not in db["active_chats"]:
+        db["active_chats"].append(chat.id)
+        save_db()
 
     register_user(user_id, user.username or "", user.first_name or "")
     u = get_user(user_id)
@@ -721,18 +1003,26 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if chat.type in ["group","supergroup"]:
         for bw in db["bad_words"]:
             if bw in text.lower():
-                try: await msg.delete(); await msg.reply_text("⛔ پیام حذف شد (کلمه نامناسب).")
+                try: await msg.delete(); await msg.reply_text("⛔ پیام حذف شد.")
                 except: pass
                 return
 
     add_score(user_id)
 
-    # حدس کلمه در گروه (بدون /guess)
-    if chat.type in ["group", "supergroup"] and not text.startswith("/"):
+    # حدس کلمه (بدون /guess)
+    if chat.type in ["group","supergroup"] and not text.startswith("/"):
         game = db["group_games"].get(str(chat.id))
         if game and game.get("word"):
             await process_guess(msg, user, text.strip(), game, str(chat.id))
             return
+
+    # حدس شخصیت
+    if await handle_guess_character(update, context):
+        return
+
+    # تایمر
+    if await handle_timer(update, context):
+        return
 
     # پشتیبانی
     if text == "پشتیبانی":
@@ -779,7 +1069,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.reply_text(f"📅 {now.strftime('%Y/%m/%d')} - {now.strftime('%A')}")
         return
 
-    # قیمت ارز/طلا
+    # قیمت‌ها
     if text in ["دلار","سکه","طلا"]:
         await price_message(update, context, text)
         return
@@ -804,30 +1094,31 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.reply_text(txt)
         return
 
-    # یادداشت
+    # یادداشت (با تاریخ)
     if text.startswith("یادداشت:"):
         note = text.replace("یادداشت:","",1).strip()
         if note:
-            u["notes"].append(note); save_db()
+            u["notes"].append({"text": note, "time": datetime.now().strftime("%Y-%m-%d %H:%M")})
+            save_db()
             await msg.reply_text("✅ ذخیره شد.")
         return
     if text == "یادداشت‌ها":
         notes = u.get("notes",[])
-        await msg.reply_text("📒 یادداشت‌ها:\n" + "\n".join(f"• {n}" for n in notes) if notes else "یادداشتی نداری.")
+        if notes:
+            txt = "📒 یادداشت‌ها:\n" + "\n".join(f"• {n['time']}: {n['text']}" for n in notes[-10:])
+            await msg.reply_text(txt)
+        else:
+            await msg.reply_text("یادداشتی نداری.")
         return
 
-    # منوی شیشه‌ای اصلی
+    # منو
     if text == "منو":
         await msg.reply_text("📋 منوی اصلی:", reply_markup=get_main_menu_keyboard())
         return
 
     # تاس/دارت
-    if text == "تاس":
-        await msg.reply_dice(emoji="🎲")
-        return
-    if text == "دارت":
-        await msg.reply_dice(emoji="🎯")
-        return
+    if text == "تاس": await msg.reply_dice(emoji="🎲"); return
+    if text == "دارت": await msg.reply_dice(emoji="🎯"); return
 
     # قرعه‌کشی
     if text == "قرعه‌کشی" and chat.type in ["group","supergroup"]:
@@ -842,35 +1133,28 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.reply_text("📸 عکس دریافت شد.")
         return
 
-    # پیام ناشناخته: سکوت
+    # ناشناخته: سکوت
 
-# ================== دکمه‌های شیشه‌ای (کال‌بک‌ها) ==================
+# ================== دکمه‌ها ==================
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query; await query.answer()
     data = query.data
     user_id = str(query.from_user.id)
 
-    # منوهای تو در تو
-    if data == "menu_main":
-        await query.edit_message_text("📋 منوی اصلی:", reply_markup=get_main_menu_keyboard())
-    elif data == "menu_games":
-        await query.edit_message_text("🎮 بازی‌ها:", reply_markup=get_games_keyboard())
-    elif data == "menu_tools":
-        await query.edit_message_text("🛠 ابزارها:", reply_markup=get_tools_keyboard())
-    elif data == "menu_profile":
-        await query.edit_message_text("👤 پروفایل:", reply_markup=get_profile_keyboard())
-    elif data == "rps_menu":
-        await query.message.reply_text("برای شروع /rps رو بزن.")
-    elif data == "menu_pollbtn":
-        await query.message.reply_text("برای نظرسنجی: /pollbtn سوال | گزینه‌ها")
-    elif data == "menu_remind":
-        await query.message.reply_text("برای یادآوری: /remind 10m پیام")
-    elif data == "menu_shop":
-        await query.message.reply_text("برای فروشگاه /shop رو بزن.")
-    elif data in ("price_dollar", "price_coin", "price_gold"):
-        item = {"price_dollar": "دلار", "price_coin": "سکه", "price_gold": "طلا"}[data]
+    if data.startswith("ttt_"):
+        await tic_tac_toe_button(update, context)
+        return
+    if data == "menu_main": await query.edit_message_text("منوی اصلی:", reply_markup=get_main_menu_keyboard())
+    elif data == "menu_games": await query.edit_message_text("بازی‌ها:", reply_markup=get_games_keyboard())
+    elif data == "menu_tools": await query.edit_message_text("ابزارها:", reply_markup=get_tools_keyboard())
+    elif data == "menu_profile": await query.edit_message_text("پروفایل:", reply_markup=get_profile_keyboard())
+    elif data == "rps_menu": await query.message.reply_text("/rps")
+    elif data == "menu_pollbtn": await query.message.reply_text("/pollbtn")
+    elif data == "menu_remind": await query.message.reply_text("/remind")
+    elif data == "menu_shop": await query.message.reply_text("/shop")
+    elif data in ("price_dollar","price_coin","price_gold"):
+        item = {"price_dollar":"دلار","price_coin":"سکه","price_gold":"طلا"}[data]
         await price_message(update, context, item)
-    # سایر کال‌بک‌ها (قدیمی)
     elif data in ("like","dislike"):
         await query.answer(f"شما {'👍' if data=='like' else '👎'} دادید")
     elif data.startswith("rps_"):
@@ -888,9 +1172,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "shownotes":
         u = get_user(user_id)
         notes = u.get("notes",[]) if u else []
-        await query.message.reply_text("📒 یادداشت‌ها:\n" + "\n".join(f"• {n}" for n in notes) if notes else "یادداشتی نداری.")
-    elif data == "help":
-        await query.message.reply_text("/start")
+        if notes:
+            txt = "📒 یادداشت‌ها:\n" + "\n".join(f"• {n['time']}: {n['text']}" for n in notes[-10:])
+            await query.message.reply_text(txt)
+        else:
+            await query.message.reply_text("یادداشتی نداری.")
+    elif data == "help": await query.message.reply_text("/start")
 
 # ================== خوش‌آمدگویی ==================
 async def welcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -902,10 +1189,22 @@ async def welcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     threading.Thread(target=start_web_server, daemon=True).start()
     app = Application.builder().token(BOT_TOKEN).build()
+
+    # سلام خودکار هر ۶ ساعت
+    app.job_queue.run_repeating(auto_greet, interval=21600, first=10)
+
+    # همه هندلرها
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("admin", admin))
     app.add_handler(CommandHandler("bot", bot_toggle))
     app.add_handler(CommandHandler("dailyreward", daily_reward))
+    app.add_handler(CommandHandler("warn", warn_user))
+    app.add_handler(CommandHandler("warns", warns_list))
+    app.add_handler(CommandHandler("resetwarn", reset_warns))
+    app.add_handler(CommandHandler("duel", duel_command))
+    app.add_handler(CommandHandler("whois", whois_command))
+    app.add_handler(CommandHandler("clearnotes", clear_notes))
+    app.add_handler(CommandHandler("guesswho", guesswho_command))
     app.add_handler(CommandHandler("mute", mute_user))
     app.add_handler(CommandHandler("poll", poll_command))
     app.add_handler(CommandHandler("remind", remind))
@@ -937,7 +1236,7 @@ def main():
     app.add_handler(CallbackQueryHandler(end_game_button, pattern="^endgame_"))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
-    print("✅ ربات نهایی با همه امکانات اجرا شد.")
+    print("✅ ربات نهایی کامل اجرا شد.")
     app.run_polling()
 
 if __name__ == "__main__":
