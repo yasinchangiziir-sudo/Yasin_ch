@@ -10,7 +10,7 @@ from telegram.ext import Application, MessageHandler, CommandHandler, CallbackQu
 # ================== تنظیمات ==================
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 OWNER_ID = 8391932958          # ⚠️ آیدی عددی خودت
-ADMIN_USERNAME = "@YasinChangizi"   # ⚠️ یوزرنیم یا آیدی خودت
+ADMIN_USERNAME = "09180010320"   # ⚠️ یوزرنیم یا آیدی خودت
 NAVASAN_API_KEY = os.environ.get("NAVASAN_API_KEY", "")
 
 # ================== دیتابیس ==================
@@ -150,7 +150,7 @@ def is_spam(user_id: str) -> bool:
 # ================== خاموش/روشن ==================
 async def check_bot_active(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not db["bot_active"] and update.effective_user.id != OWNER_ID:
-        await update.message.reply_text("⛔ ربات به دستور سازنده خاموش است.")
+        await update.message.reply_text("⛔ ربات در حال تعمییر است و بزودی فعال میشود")
         return True
     return False
 
@@ -208,16 +208,125 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     welcome_text = """
 🤖 **به Diminol-bot خوش اومدی!**
-ساخته‌ی یاسین چنگیزی ❤️
-
-✨ **قابلیت‌های جدید:**
-🎂 ثبت تولد `/setbirthday`
-🖼 گالری عکس `/gallery`
-🔒 قفل گروه `/lock` و `/unlock`
-📖 داستان گروهی `/storystart`
-🎁 کد دعوت ویژه: `yasin` = ۵۰۰ امتیاز
-
-📌 برای دیدن همه دستورات /start
+دستورات عمومی
+دستور توضیح
+/start شروع ربات، نمایش راهنمای کامل و دکمه‌های شیشه‌ای
+منو نمایش منوی اصلی با دکمه‌های شیشه‌ای
+پشتیبانی نمایش یوزرنیم یا آیدی سازنده برای ارتباط مستقیم
+‌
+‌
+بازی و سرگرمی
+دستور / پیام توضیح
+/rps بازی سنگ-کاغذ-قیچی (با دکمه)
+/fal فال حافظ با تفسیر
+/challenge دریافت چالش تصادفی روزانه
+/guessword شروع بازی حدس کلمه در گروه (حدس مستقیم بدون /guess)
+/guess کلمه حدس کلمه در بازی حدس کلمه
+/pet مدیریت پت مجازی (خرید، غذا دادن، وضعیت)
+/pet buy نوع اسم خرید پت (انواع: جوجه، سگ، گربه)
+/pet feed غذا دادن به پت و کاهش گرسنگی
+/pet status مشاهدهٔ وضعیت گرسنگی پت
+/quests مشاهدهٔ مأموریت‌های روزانه
+/claim شماره تحویل مأموریت و دریافت ۳۰ امتیاز
+تاس پرتاب تاس 🎲
+دارت پرتاب دارت 🎯
+جک / جوک / جوک بگو دریافت یک جوک تصادفی از آرشیو
+نقل‌قول / جمله دریافت یک جملهٔ زیبا و آموزنده
+استیکر دریافت یک استیکر تصادفی از آرشیو
+گیف دریافت یک گیف تصادفی از آرشیو
+قرعه‌کشی انتخاب تصادفی یک عضو گروه (فقط گروه)
+/duel @یوزرنیم شروع بازی دوز (Tic-Tac-Toe) با یک کاربر (فقط گروه)
+/guesswho شروع بازی حدس شخصیت (فقط گروه)
+حدس میزنم نام حدس زدن شخصیت در بازی حدس شخصیت
+شیر یا خط پرتاب سکه 🪙
+توپ جادویی سوال پرسیدن سوال و دریافت پاسخ طنزآمیز 🎱
+/mathquiz شروع مسابقهٔ ریاضی در گروه (۲۰ امتیاز جایزه)
+مسابقه ریاضی (در گروه) پاسخ مستقیم با عدد به سوال ریاضی
+‌
+‌ابزار های کاربردی
+دستور / پیام توضیح
+دلار قیمت لحظه‌ای دلار (نیاز به کلید API نواسان)
+سکه قیمت لحظه‌ای سکه
+طلا قیمت لحظه‌ای طلا ۱۸ عیار
+ساعت نمایش ساعت فعلی
+تاریخ / امروز تاریخ شمسی امروز
+/poll سوال \| گزینه‌ها ساخت نظرسنجی تلگرامی
+/pollbtn سوال \| گزینه‌ها ساخت نظرسنجی با دکمه‌های شیشه‌ای
+/remind 10m پیام تنظیم یادآوری بعد از مدت مشخص (s/m/h)
+تایمر 5m تایمر ساده (مثال: تایمر 30s یا تایمر 2m)
+/insta دانلود از اینستاگرام (موقتاً غیرفعال)
+یادداشت: متن ذخیرهٔ یادداشت شخصی با تاریخ
+یادداشت‌ها مشاهدهٔ یادداشت‌های ذخیره‌شده
+/clearnotes پاک کردن همهٔ یادداشت‌ها
+/setbirthday تاریخ ثبت تاریخ تولد شمسی (مثال: /setbirthday 1375-06-15)
+‌
+‌پروفایل و امتیاز
+دستور / پیام توضیح
+امتیاز نمایش امتیاز، سطح و عنوان کاربر (تازه‌وارد تا افسانه‌ای)
+تاپ ۱۰ کاربر برتر
+/referral مشاهدهٔ کد دعوت شخصی و لینک ویژه (کد yasin)
+/shop مشاهدهٔ فروشگاه آیتم‌ها
+/buy شماره خرید آیتم با امتیاز
+/items آیتم‌های خریداری‌شده
+/whois @یوزرنیم اطلاعات کاربر دیگر (امتیاز، پت، آیتم‌ها، یادداشت‌ها)
+‌
+‌امکانات گروهی 
+دستور / پیام توضیح
+/mute user_id دقیقه سکوت موقت کاربر (فقط ادمین‌ها)
+/warn user_id دلیل ثبت اخطار برای کاربر (۳ اخطار = ۱۰ دقیقه سکوت)
+/warns user_id مشاهدهٔ اخطارهای یک کاربر
+/resetwarn user_id پاک کردن همهٔ اخطارهای یک کاربر
+/lock قفل گروه (فقط ادمین‌ها – پیام‌های غیرادمین پاک می‌شود)
+/unlock باز کردن قفل گروه
+/diary متن ثبت خاطره در دفتر گروه
+/diary مشاهدهٔ ۱۰ خاطرهٔ آخر گروه
+تالار نمایش ۵ کاربر برتر و سنجاق پیام
+/gallery نمایش ۵ عکس تصادفی از گالری گروه
+/cleargallery پاک کردن گالری گروه (فقط مالک)
+/storystart شروع داستان‌سرایی گروهی
+/story جمله افزودن جمله به داستان گروهی
+/storyend پایان داستان گروهی و نمایش کامل آن
+خودکار ضد لینک (حذف + هشدار)، ضد اسپم، فیلتر کلمات نامناسب، خوش‌آمدگویی
+‌
+‌پنل سازنده
+دستور توضیح
+/admin stats آمار کل کاربران و کاربران مسدود
+/admin broadcast متن ارسال پیام همگانی به همهٔ کاربران
+/admin block user_id مسدود کردن کاربر
+/admin unblock user_id آزاد کردن کاربر
+/admin badword add/remove کلمه مدیریت کلمات فیلتر
+/admin logs مشاهدهٔ ۲۰ لاگ آخر
+/learn کلمه \| پاسخ یاد دادن یک پاسخ به ربات (مثال: /learn سلام \| علیک)
+/unlearn کلمه پاک کردن یک کلمه از حافظهٔ ربات
+/addjoke متن افزودن جوک جدید (همه می‌توانند اضافه کنند)
+/deljoke شماره حذف جوک (فقط مالک)
+/jokes لیست همهٔ جوک‌ها
+/addquote متن افزودن نقل‌قول جدید (همه می‌توانند اضافه کنند)
+/delquote شماره حذف نقل‌قول (فقط مالک)
+/quotes لیست همهٔ نقل‌قول‌ها
+/additem نام قیمت افزودن آیتم به فروشگاه (مثال: /additem شمشیر 300)
+/removeitem شماره حذف آیتم از فروشگاه
+/editprice شماره قیمت تغییر قیمت آیتم
+/schedule تاریخ ساعت متن زمان‌بندی پیام (مثال: /schedule 2026-07-10 18:00 جلسه)
+/schedule هر روز 08:00 متن زمان‌بندی پیام روزانه
+/bot on / /bot off خاموش/روشن کردن ربات (در حالت خاموش فقط به مالک پاسخ می‌دهد)
+/dailyreward اهدای ۵۰ امتیاز به کاربر برتر (روزی یک‌بار)
+‌
+‌چت ناشناس 
+دستور توضیح
+/anon فعال‌سازی حالت چت ناشناس (پیام بعدی ناشناس به مالک فوروارد می‌شود)
+/cancel لغو حالت چت ناشناس
+/anon_reply user_id متن پاسخ به یک پیام ناشناس (فقط مالک)
+‌
+‌هر پیام (متنی یا عکس): ۱ امتیاز
+· دعوت دوستان با لینک /referral: ۲۰ امتیاز برای دعوت‌کننده
+· کد ویژه yasin (?start=yasin): ۵۰۰ امتیاز (فقط یک‌بار برای هر کاربر)
+· حدس کلمه: ۵۰ امتیاز برای برنده
+· مسابقه ریاضی: ۲۰ امتیاز برای پاسخ صحیح
+· حدس شخصیت: ۳۰ امتیاز برای برنده
+· هدیه روزانه (/dailyreward): ۵۰ امتیاز به نفر اول
+· تولد: ۵۰ امتیاز هدیه در روز تولد
+‌
 """
     await update.message.reply_text(welcome_text)
 
@@ -359,7 +468,7 @@ async def addjoke_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     joke = " ".join(context.args)
     if not joke: return await update.message.reply_text("/addjoke متن جُک")
     db["jokes"].append(joke); save_db()
-    await update.message.reply_text(f"✅ جُک جدید ذخیره شد. (شماره {len(db['jokes'])})")
+    await update.message.reply_text(f"✅ جوک جدید ذخیره شد. (شماره {len(db['jokes'])})")
 
 async def deljoke_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != OWNER_ID: return await update.message.reply_text("❌ فقط سازنده میتونه حذف کنه.")
@@ -688,7 +797,7 @@ async def pollbtn_vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ================== Insta (غیرفعال) ==================
 async def insta_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("📥 سرور دانلود اینستاگرام موقتاً در دسترس نیست.")
+    await update.message.reply_text("📥  دانلود اینستاگرام موقتاً در دسترس نیست.")
 
 # ================== اخطار، دوز، whois، clearnotes (همان) ==================
 async def warn_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1087,7 +1196,7 @@ async def gallery_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def cleargallery_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != OWNER_ID:
-        return await update.message.reply_text("❌ فقط سازنده.")
+        return await update.message.reply_text("❌ فقط سازنده یا ادمین میتونه")
     chat_id = str(update.effective_chat.id)
     group = db["group_data"].get(chat_id, {})
     group["gallery"] = []
@@ -1126,7 +1235,7 @@ async def unlock_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if chat.type not in ["group","supergroup"]: return await update.message.reply_text("فقط گروه.")
     member = await context.bot.get_chat_member(chat.id, user.id)
     if member.status not in ["administrator","creator"] and user.id != OWNER_ID:
-        return await update.message.reply_text("❌ فقط ادمین.")
+        return await update.message.reply_text("❌ فقط ادمین میتونه.")
     chat_id = str(chat.id)
     group = db["group_data"].setdefault(chat_id, {"gallery": [], "locked": False, "story": None})
     group["locked"] = False
@@ -1219,7 +1328,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ضد لینک
     if chat.type in ["group","supergroup"] and re.search(r'https?://', text):
-        await msg.reply_text("❌ لینک ممنوع است.")
+        await msg.reply_text("❌ عدالت باید به طور مساوی اجرا بشه")
         try: await msg.delete()
         except: pass
         return
@@ -1291,7 +1400,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # نقل‌قول
-    if text in ["نقل‌قول","جمله"]:
+    if text in ["نقل قول","جمله"]:
         if db["quotes"]: await msg.reply_text(random.choice(db["quotes"]))
         else: await msg.reply_text("هنوز نقل‌قولی ثبت نشده. با /addquote اضافه کن.")
         return
