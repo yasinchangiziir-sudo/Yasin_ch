@@ -157,7 +157,7 @@ def is_spam(user_id: str) -> bool:
 # ================== خاموش/روشن ==================
 async def check_bot_active(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not db["bot_active"] and update.effective_user.id != OWNER_ID:
-        await update.message.reply_text("⛔ ربات به دستور سازنده خاموش است.")
+        await update.message.reply_text("🪫 ربات در حال تعمیر است.")
         return True
     return False
 
@@ -216,7 +216,7 @@ def get_profile_keyboard():
         [InlineKeyboardButton("⭐ امتیاز", callback_data="score"), InlineKeyboardButton("🏆 تاپ", callback_data="top")],
         [InlineKeyboardButton("📒 یادداشت‌ها", callback_data="shownotes")],
         [InlineKeyboardButton("🛍 فروشگاه", callback_data="menu_shop"), InlineKeyboardButton("🎁 آیتم‌ها", callback_data="items_menu")],
-        [InlineKeyboardButton("🐣 پت", callback_data="pet_status"), InlineKeyboardButton("🎂 تولد", callback_data="birthday_menu")],
+        [InlineKeyboardButton("🐣 حیوان خانگی", callback_data="pet_status"), InlineKeyboardButton("🎂 تولد", callback_data="birthday_menu")],
         [InlineKeyboardButton("🔗 کد دعوت", callback_data="referral_menu"), InlineKeyboardButton("👤 whois", callback_data="whois_menu")],
         [InlineKeyboardButton("👥 دعوت‌شده‌ها", callback_data="myreferrals")],
         [InlineKeyboardButton("🧹 پاک کردن یادداشت", callback_data="clearnotes")],
@@ -266,9 +266,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("🎉 ۵۰۰ امتیاز ویژه به شما تعلق گرفت!")
 
     await update.message.reply_text(
-        f"🤖 **به Diminol-bot خوش اومدی!**\nساخته‌ی یاسین چنگیزی ❤️\n\n"
+        f"🤖 **به Diminol-bot خوش اومدی!**\n ❤️\n\n"
         f"📖 برای دریافت راهنمای کامل دستورات به کانال زیر مراجعه کنید:\n{CHANNEL_LINK}\n\n"
-        f"یا بنویس `منو` تا دکمه‌های شیشه‌ای را ببینی.",
+        f"یا بنویس منو تا دکمه‌های شیشه‌ای را ببینی.",
         reply_markup=get_main_menu_keyboard(update.effective_user.id),
         disable_web_page_preview=True
     )
@@ -436,7 +436,7 @@ async def deljoke_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def list_jokes_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     jokes = db["jokes"]
     if not jokes: return await update.message.reply_text("هنوز هیچ جُکی نیست.")
-    txt = "📋 لیست جُک‌ها:\n" + "\n".join(f"{i+1}. {j}" for i,j in enumerate(jokes))
+    txt = "📋 لیست جُوک‌ها:\n" + "\n".join(f"{i+1}. {j}" for i,j in enumerate(jokes))
     await update.message.reply_text(txt[:4000])
 
 # ================== نقل‌قول‌ها ==================
@@ -1314,7 +1314,7 @@ async def unlock_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     group = db["group_data"].setdefault(chat_id, {"gallery": [], "locked": False, "story": None})
     group["locked"] = False
     save_db()
-    await update.message.reply_text("🔓 گروه آزاد شد.")
+    await update.message.reply_text("🔓 گروه را خدا ازاد کرد.")
 
 # 5. داستان‌سرایی گروهی
 STORY_STARTERS = [
@@ -1570,7 +1570,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ضد لینک
     if chat.type in ["group","supergroup"] and re.search(r'https?://', text):
-        await msg.reply_text("❌ لینک ممنوع است.")
+        await msg.reply_text("❌ عدالت برای همه یکسان است")
         try: await msg.delete()
         except: pass
         db["weekly_stats"][chat_id]["links_deleted"] += 1
@@ -1933,7 +1933,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_handler(MessageHandler(filters.PHOTO, handle_message))
     app.add_handler(MessageHandler(filters.Document.ALL | filters.VIDEO | filters.AUDIO, file_handler))
-    app.add_handler(MessageHandler(filters.Reaction, handle_reaction))
+    #app.add_handler(MessageHandler(filters.Reaction, handle_reaction))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
     print("✅ ربات نهایی کامل اجرا شد.")
