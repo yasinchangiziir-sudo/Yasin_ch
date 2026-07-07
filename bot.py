@@ -29,6 +29,7 @@ db.setdefault("quotes", [])
 db.setdefault("learned", {})
 db.setdefault("stickers", [])
 db.setdefault("animations", [])
+db.setdefault("files", [])
 db.setdefault("group_diaries", {})
 db.setdefault("referrals", {})
 db.setdefault("shop", [])
@@ -53,11 +54,13 @@ db.setdefault("active_chats", [])
 db.setdefault("math_games", {})
 db.setdefault("scheduled_jobs", [])
 db.setdefault("anon_waiting", {})
+db.setdefault("ticket_waiting", {})
 db.setdefault("used_yasin", [])
 db.setdefault("group_data", {})
 db.setdefault("daily_rolls", {})
 db.setdefault("snake_games", {})
 db.setdefault("weekly_stats", {})
+db.setdefault("millionaire_games", {})
 
 def save_db():
     with open(DB_FILE, "w", encoding="utf-8") as f:
@@ -170,6 +173,8 @@ def get_main_menu_keyboard(user_id: int = None):
         [InlineKeyboardButton("🛠 ابزارها", callback_data="menu_tools")],
         [InlineKeyboardButton("👤 پروفایل", callback_data="menu_profile")],
         [InlineKeyboardButton("👥 گروه", callback_data="menu_group")],
+        [InlineKeyboardButton("📁 فایل‌ها", callback_data="menu_files")],
+        [InlineKeyboardButton("🎫 تیکت پشتیبانی", callback_data="ticket_start")],
         [InlineKeyboardButton("💬 چت ناشناس", callback_data="anon_chat")],
     ]
     if user_id == OWNER_ID:
@@ -189,6 +194,7 @@ def get_games_keyboard():
         [InlineKeyboardButton("⭕ دوز", callback_data="duel_menu")],
         [InlineKeyboardButton("🐍 مار و پله", callback_data="snake_menu")],
         [InlineKeyboardButton("🎡 چرخ شانس", callback_data="roll_menu")],
+        [InlineKeyboardButton("💰 میلیونر", callback_data="millionaire_menu")],
         [InlineKeyboardButton("🐣 پت مجازی", callback_data="pet_menu")],
         [InlineKeyboardButton("🎯 مأموریت‌ها", callback_data="quests_menu")],
         [InlineKeyboardButton("🔙 بازگشت", callback_data="menu_main")],
@@ -212,6 +218,7 @@ def get_profile_keyboard():
         [InlineKeyboardButton("🛍 فروشگاه", callback_data="menu_shop"), InlineKeyboardButton("🎁 آیتم‌ها", callback_data="items_menu")],
         [InlineKeyboardButton("🐣 پت", callback_data="pet_status"), InlineKeyboardButton("🎂 تولد", callback_data="birthday_menu")],
         [InlineKeyboardButton("🔗 کد دعوت", callback_data="referral_menu"), InlineKeyboardButton("👤 whois", callback_data="whois_menu")],
+        [InlineKeyboardButton("👥 دعوت‌شده‌ها", callback_data="myreferrals")],
         [InlineKeyboardButton("🧹 پاک کردن یادداشت", callback_data="clearnotes")],
         [InlineKeyboardButton("🔙 بازگشت", callback_data="menu_main")],
     ])
@@ -457,7 +464,7 @@ async def list_quotes_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     txt = "📋 لیست نقل‌قول‌ها:\n" + "\n".join(f"{i+1}. {q}" for i,q in enumerate(quotes))
     await update.message.reply_text(txt[:4000])
 
-# ================== فروشگاه (با موجودی) ==================
+# ================== فروشگاه ==================
 async def shop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await check_bot_active(update, context): return
     shop = db["shop"]
@@ -564,7 +571,6 @@ async def unrole_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ================== چرخ شانس ==================
 ROLL_PRIZES = [10, 20, 30, 50, 100, 0, 5, 15, 25, 0]
-
 async def roll_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     today = datetime.now().strftime("%Y-%m-%d")
@@ -582,7 +588,6 @@ async def roll_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ================== مار و پله ==================
 SNAKE_BOARD = {3: 11, 8: 17, 16: 4, 21: 9, 27: 1}
-
 async def snake_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     if chat.type not in ["group","supergroup"]: return await update.message.reply_text("فقط گروه.")
@@ -621,7 +626,7 @@ async def snake_dice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         del db["snake_games"][chat_id]
         save_db()
 
-# ================== نظرسنجی دکمه‌ای (با پایان) ==================
+# ================== نظرسنجی دکمه‌ای ==================
 async def pollbtn_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await check_bot_active(update, context): return
     text = " ".join(context.args)
@@ -872,10 +877,7 @@ async def price_message(update: Update, context: ContextTypes.DEFAULT_TYPE, item
         await update.message.reply_text(txt)
     except: await update.message.reply_text("⚠️ خطا در دریافت قیمت.")
 
-# ================== PollBtn (همان) ==================
-# (توابع pollbtn_command, pollbtn_vote, poll_end در بخش نظرسنجی دکمه‌ای بالاتر تعریف شدند)
-
-# ================== Insta (غیرفعال) ==================
+# ================== Insta ==================
 async def insta_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("📥 سرور دانلود اینستاگرام موقتاً در دسترس نیست.")
 
@@ -1365,7 +1367,167 @@ async def story_end(update: Update, context: ContextTypes.DEFAULT_TYPE):
     group["story"] = None
     save_db()
 
-# ================== مدیریت پیام‌ها (آمار هفتگی) ==================
+# ================== قابلیت‌های جدید ==================
+
+# 1. سیستم تیکت
+async def ticket_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+    db["ticket_waiting"][user_id] = True
+    save_db()
+    await update.message.reply_text("🎫 لطفاً پیام خود را بنویسید تا به پشتیبانی ارسال شود. برای لغو /cancel")
+
+async def handle_ticket_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+    if db["ticket_waiting"].get(user_id):
+        del db["ticket_waiting"][user_id]
+        save_db()
+        text = update.message.text
+        await context.bot.send_message(OWNER_ID, f"🎫 تیکت از کاربر {user_id}:\n{text}")
+        await update.message.reply_text("✅ تیکت شما ثبت شد. پشتیبانی به زودی پاسخ می‌دهد.")
+        return True
+    return False
+
+async def ticket_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != OWNER_ID: return await update.message.reply_text("❌ فقط سازنده.")
+    args = context.args
+    if len(args) < 2: return await update.message.reply_text("/ticketreply user_id متن")
+    target_id = args[0]
+    reply_text = " ".join(args[1:])
+    try:
+        await context.bot.send_message(int(target_id), f"📩 پاسخ پشتیبانی:\n{reply_text}")
+        await update.message.reply_text("✅ پاسخ ارسال شد.")
+    except: await update.message.reply_text("خطا در ارسال.")
+
+# 2. بازی میلیونر
+MILLIONAIRE_QUESTIONS = [
+    {"q": "پایتخت ایران؟", "opts": ["تهران", "اصفهان", "شیراز", "تبریز"], "ans": 0},
+    {"q": "۲+۲ چند می‌شود؟", "opts": ["۳", "۴", "۵", "۶"], "ans": 1},
+    {"q": "بزرگترین اقیانوس جهان؟", "opts": ["اطلس", "هند", "آرام", "منجمد شمالی"], "ans": 2},
+    {"q": "رنگ خورشید؟", "opts": ["آبی", "سبز", "زرد", "قرمز"], "ans": 2},
+    {"q": "تعداد استان‌های ایران؟", "opts": ["۳۰", "۳۱", "۳۲", "۳۳"], "ans": 1},
+]
+async def millionaire_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+    questions = random.sample(MILLIONAIRE_QUESTIONS, min(5, len(MILLIONAIRE_QUESTIONS)))
+    db["millionaire_games"][user_id] = {"questions": questions, "current": 0, "score": 0}
+    save_db()
+    await ask_millionaire_question(update, context, user_id)
+
+async def ask_millionaire_question(update, context, user_id):
+    game = db["millionaire_games"].get(user_id)
+    if not game: return
+    idx = game["current"]
+    if idx >= len(game["questions"]):
+        await update.message.reply_text(f"🎉 بازی تمام شد! امتیاز نهایی: {game['score']}")
+        del db["millionaire_games"][user_id]
+        save_db()
+        return
+    q = game["questions"][idx]
+    keyboard = []
+    for i, opt in enumerate(q["opts"]):
+        keyboard.append([InlineKeyboardButton(opt, callback_data=f"million_{i}")])
+    await update.message.reply_text(f"💰 سوال {idx+1}: {q['q']}", reply_markup=InlineKeyboardMarkup(keyboard))
+
+async def millionaire_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query; await query.answer()
+    user_id = str(query.from_user.id)
+    game = db["millionaire_games"].get(user_id)
+    if not game: return await query.edit_message_text("بازی تمام شده.")
+    ans = int(query.data.split("_")[1])
+    q = game["questions"][game["current"]]
+    if ans == q["ans"]:
+        game["score"] += 10
+        await query.edit_message_text("✅ درست!")
+    else:
+        await query.edit_message_text(f"❌ اشتباه! جواب: {q['opts'][q['ans']]}")
+    game["current"] += 1
+    save_db()
+    await ask_millionaire_question(update, context, user_id)
+
+# 3. معرفی دوستان با جزئیات
+async def myreferrals_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+    ref_data = db["referrals"].get(user_id, {})
+    invited = ref_data.get("invited", [])
+    if not invited:
+        await update.message.reply_text("هنوز کسی رو دعوت نکردی.")
+        return
+    txt = "👥 دوستانی که دعوت کردی:\n"
+    for uid in invited[:20]:
+        u = get_user(uid)
+        name = u["first_name"] if u else "کاربر ناشناس"
+        txt += f"• {name} (`{uid}`)\n"
+    await update.message.reply_text(txt, parse_mode="Markdown")
+
+# 4. مدیریت فایل
+async def file_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    msg = update.message
+    if msg.document:
+        file_id = msg.document.file_id
+        file_name = msg.document.file_name or "بدون نام"
+        db["files"].append({"file_id": file_id, "file_name": file_name, "type": "document", "uploader": str(update.effective_user.id)})
+        save_db()
+        await msg.reply_text(f"📁 فایل «{file_name}» ذخیره شد.")
+    elif msg.video:
+        file_id = msg.video.file_id
+        file_name = msg.video.file_name or "ویدیو"
+        db["files"].append({"file_id": file_id, "file_name": file_name, "type": "video", "uploader": str(update.effective_user.id)})
+        save_db()
+        await msg.reply_text("📹 ویدیو ذخیره شد.")
+    elif msg.audio:
+        file_id = msg.audio.file_id
+        file_name = msg.audio.file_name or "صدا"
+        db["files"].append({"file_id": file_id, "file_name": file_name, "type": "audio", "uploader": str(update.effective_user.id)})
+        save_db()
+        await msg.reply_text("🎵 صوت ذخیره شد.")
+
+async def files_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    files = db["files"]
+    if not files:
+        await update.message.reply_text("هیچ فایلی ذخیره نشده.")
+        return
+    txt = "📁 فایل‌های آپلود شده:\n"
+    for i, f in enumerate(files[-20:], 1):
+        txt += f"{i}. {f['file_name']} ({f['type']})\n"
+    await update.message.reply_text(txt)
+    await update.message.reply_text("برای دریافت فایل، شماره آن را با /getfile بفرست.")
+
+async def getfile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("/getfile شماره")
+        return
+    try:
+        idx = int(context.args[0]) - 1
+        if 0 <= idx < len(db["files"]):
+            f = db["files"][idx]
+            if f["type"] == "document":
+                await update.message.reply_document(f["file_id"])
+            elif f["type"] == "video":
+                await update.message.reply_video(f["file_id"])
+            elif f["type"] == "audio":
+                await update.message.reply_audio(f["file_id"])
+        else:
+            await update.message.reply_text("شماره نامعتبر.")
+    except:
+        await update.message.reply_text("عدد وارد کن.")
+
+# 5. واکنش طنز
+FUNNY_REACTIONS = [
+    "واکنشت رو دیدم! 😏",
+    "آفرین، یه لایک برای تو!",
+    "مرسی از واکنشت! 🤪",
+    "با این واکنش خوشم اومد!",
+    "😎👌",
+]
+
+async def handle_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        if update.message_reaction:
+            await update.message.reply_text(random.choice(FUNNY_REACTIONS))
+    except:
+        pass
+
+# ================== مدیریت پیام‌ها (اصلی) ==================
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await check_bot_active(update, context): return
     msg = update.message; chat = update.effective_chat; user = update.effective_user
@@ -1399,6 +1561,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await auto_save_photo(update, context)
     if await handle_anon_message(update, context): return
+    if await handle_ticket_message(update, context): return
+
+    # ذخیره فایل‌های ارسالی
+    if msg.document or msg.video or msg.audio:
+        await file_handler(update, context)
+        return
 
     # ضد لینک
     if chat.type in ["group","supergroup"] and re.search(r'https?://', text):
@@ -1556,6 +1724,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data.startswith("ttt_"): await tic_tac_toe_button(update, context); return
     if data.startswith("pollbtn_"): await pollbtn_vote(update, context); return
     if data.startswith("pollend_"): await poll_end(update, context); return
+    if data.startswith("million_"): await millionaire_answer(update, context); return
 
     # منوها
     if data == "menu_main": await query.edit_message_text("📋 منوی اصلی:", reply_markup=get_main_menu_keyboard(query.from_user.id))
@@ -1563,6 +1732,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "menu_tools": await query.edit_message_text("🛠 ابزارها:", reply_markup=get_tools_keyboard())
     elif data == "menu_profile": await query.edit_message_text("👤 پروفایل:", reply_markup=get_profile_keyboard())
     elif data == "menu_group": await query.edit_message_text("👥 امکانات گروهی:", reply_markup=get_group_keyboard())
+    elif data == "menu_files": await query.edit_message_text("📁 فایل‌ها: /files", reply_markup=get_main_menu_keyboard(query.from_user.id))
+    elif data == "ticket_start": await ticket_start(update, context)
     elif data == "menu_admin":
         if query.from_user.id != OWNER_ID: await query.answer("فقط سازنده!", show_alert=True); return
         await query.edit_message_text("👑 پنل ادمین:", reply_markup=get_admin_keyboard())
@@ -1575,6 +1746,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "duel_menu": await query.message.reply_text("/duel @یوزرنیم")
     elif data == "snake_menu": await query.message.reply_text("برای مار و پله: /snake (گروه)")
     elif data == "roll_menu": await query.message.reply_text("برای چرخ شانس: /roll")
+    elif data == "millionaire_menu": await query.message.reply_text("برای میلیونر: /millionaire")
     elif data == "pet_menu": await query.message.reply_text("/pet buy|feed|status")
     elif data == "quests_menu": await query.message.reply_text("/quests و /claim")
     elif data == "poll_menu": await query.message.reply_text("/poll سوال | گزینه‌ها")
@@ -1587,6 +1759,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "referral_menu": await query.message.reply_text("/referral")
     elif data == "birthday_menu": await query.message.reply_text("/setbirthday 1375-06-15")
     elif data == "whois_menu": await query.message.reply_text("/whois @یوزرنیم")
+    elif data == "myreferrals": await query.message.reply_text("/myreferrals")
     elif data == "mute_menu": await query.message.reply_text("/mute user_id دقیقه")
     elif data == "warn_menu": await query.message.reply_text("/warn user_id دلیل")
     elif data == "warns_menu": await query.message.reply_text("/warns user_id")
@@ -1690,9 +1863,8 @@ def main():
 
     app.job_queue.run_repeating(auto_greet, interval=21600, first=10)
     app.job_queue.run_daily(birthday_check, time=dt_time(7, 0))
-    app.job_queue.run_daily(weekly_report, time=dt_time(18, 0), days=(6,))  # جمعه‌ها ساعت ۱۸
+    app.job_queue.run_daily(weekly_report, time=dt_time(18, 0), days=(6,))
 
-    # ثبت همه هندلرها
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("admin", admin))
     app.add_handler(CommandHandler("bot", bot_toggle))
@@ -1720,6 +1892,7 @@ def main():
     app.add_handler(CommandHandler("snake", snake_command))
     app.add_handler(CommandHandler("dice", snake_dice))
     app.add_handler(CommandHandler("referral", referral_command))
+    app.add_handler(CommandHandler("myreferrals", myreferrals_command))
     app.add_handler(CommandHandler("diary", diary_command))
     app.add_handler(CommandHandler("fal", fal_command))
     app.add_handler(CommandHandler("challenge", challenge_command))
@@ -1742,6 +1915,11 @@ def main():
     app.add_handler(CommandHandler("schedule", schedule_command))
     app.add_handler(CommandHandler("anon", anon_command))
     app.add_handler(CommandHandler("anon_reply", anon_reply_command))
+    app.add_handler(CommandHandler("ticket", ticket_start))
+    app.add_handler(CommandHandler("ticketreply", ticket_reply))
+    app.add_handler(CommandHandler("millionaire", millionaire_command))
+    app.add_handler(CommandHandler("files", files_list))
+    app.add_handler(CommandHandler("getfile", getfile_command))
     app.add_handler(CommandHandler("setbirthday", set_birthday))
     app.add_handler(CommandHandler("gallery", gallery_command))
     app.add_handler(CommandHandler("cleargallery", cleargallery_command))
@@ -1754,9 +1932,11 @@ def main():
     app.add_handler(MessageHandler(filters.ANIMATION, animation_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_handler(MessageHandler(filters.PHOTO, handle_message))
+    app.add_handler(MessageHandler(filters.Document.ALL | filters.VIDEO | filters.AUDIO, file_handler))
+    app.add_handler(MessageHandler(filters.Reaction, handle_reaction))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
-    print("✅ ربات با همه ارتقاهای جدید اجرا شد.")
+    print("✅ ربات نهایی کامل اجرا شد.")
     app.run_polling()
 
 if __name__ == "__main__":
