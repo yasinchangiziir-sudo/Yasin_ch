@@ -1933,7 +1933,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_handler(MessageHandler(filters.PHOTO, handle_message))
     app.add_handler(MessageHandler(filters.Document.ALL | filters.VIDEO | filters.AUDIO, file_handler))
-    #app.add_handler(MessageHandler(filters.Reaction, handle_reaction))
+    app.add_handler(MessageHandler(filters.UpdateType.REACTION, handle_reaction))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
     print("✅ ربات نهایی کامل اجرا شد.")
