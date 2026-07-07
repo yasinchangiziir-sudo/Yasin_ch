@@ -157,7 +157,7 @@ def is_spam(user_id: str) -> bool:
 # ================== خاموش/روشن ==================
 async def check_bot_active(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not db["bot_active"] and update.effective_user.id != OWNER_ID:
-        await update.message.reply_text("🪫 ربات در حال تعمیر است.")
+        await update.message.reply_text("⛔ ربات به دستور سازنده خاموش است.")
         return True
     return False
 
@@ -216,7 +216,7 @@ def get_profile_keyboard():
         [InlineKeyboardButton("⭐ امتیاز", callback_data="score"), InlineKeyboardButton("🏆 تاپ", callback_data="top")],
         [InlineKeyboardButton("📒 یادداشت‌ها", callback_data="shownotes")],
         [InlineKeyboardButton("🛍 فروشگاه", callback_data="menu_shop"), InlineKeyboardButton("🎁 آیتم‌ها", callback_data="items_menu")],
-        [InlineKeyboardButton("🐣 حیوان خانگی", callback_data="pet_status"), InlineKeyboardButton("🎂 تولد", callback_data="birthday_menu")],
+        [InlineKeyboardButton("🐣 پت", callback_data="pet_status"), InlineKeyboardButton("🎂 تولد", callback_data="birthday_menu")],
         [InlineKeyboardButton("🔗 کد دعوت", callback_data="referral_menu"), InlineKeyboardButton("👤 whois", callback_data="whois_menu")],
         [InlineKeyboardButton("👥 دعوت‌شده‌ها", callback_data="myreferrals")],
         [InlineKeyboardButton("🧹 پاک کردن یادداشت", callback_data="clearnotes")],
@@ -266,9 +266,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("🎉 ۵۰۰ امتیاز ویژه به شما تعلق گرفت!")
 
     await update.message.reply_text(
-        f"🤖 **به Diminol-bot خوش اومدی!**\n ❤️\n\n"
+        f"🤖 **به Diminol-bot خوش اومدی!**\nساخته‌ی یاسین چنگیزی ❤️\n\n"
         f"📖 برای دریافت راهنمای کامل دستورات به کانال زیر مراجعه کنید:\n{CHANNEL_LINK}\n\n"
-        f"یا بنویس منو تا دکمه‌های شیشه‌ای را ببینی.",
+        f"یا بنویس `منو` تا دکمه‌های شیشه‌ای را ببینی.",
         reply_markup=get_main_menu_keyboard(update.effective_user.id),
         disable_web_page_preview=True
     )
@@ -436,7 +436,7 @@ async def deljoke_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def list_jokes_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     jokes = db["jokes"]
     if not jokes: return await update.message.reply_text("هنوز هیچ جُکی نیست.")
-    txt = "📋 لیست جُوک‌ها:\n" + "\n".join(f"{i+1}. {j}" for i,j in enumerate(jokes))
+    txt = "📋 لیست جُک‌ها:\n" + "\n".join(f"{i+1}. {j}" for i,j in enumerate(jokes))
     await update.message.reply_text(txt[:4000])
 
 # ================== نقل‌قول‌ها ==================
@@ -779,11 +779,17 @@ async def guess_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await process_guess(update.message, user, guess, game, str(chat.id))
 
 async def end_game_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query; await query.answer()
-    data = query.data.split("_"); chat_id = data[1]
+    query = update.callback_query
+    await query.answer()
+    data = query.data.split("_")
+    chat_id = data[1]
     game = db["group_games"].get(chat_id)
-    if not game or not game.get("word"): await query.edit_message_text("بازی‌ای در جریان نیست."); return
-    word = game["word"]; del db["group_games"][chat_id]; save_db()
+    if not game or not game.get("word"):
+        await query.edit_message_text("بازی‌ای در جریان نیست.")
+        return
+    word = game["word"]
+    del db["group_games"][chat_id]
+    save_db()
     await query.edit_message_text(f"🏁 بازی پایان یافت. کلمه «{word}» بود.")
 
 async def process_guess(msg, user, guess, game, chat_id_str):
@@ -1314,7 +1320,7 @@ async def unlock_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     group = db["group_data"].setdefault(chat_id, {"gallery": [], "locked": False, "story": None})
     group["locked"] = False
     save_db()
-    await update.message.reply_text("🔓 گروه را خدا ازاد کرد.")
+    await update.message.reply_text("🔓 گروه آزاد شد.")
 
 # 5. داستان‌سرایی گروهی
 STORY_STARTERS = [
@@ -1480,6 +1486,10 @@ async def file_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db["files"].append({"file_id": file_id, "file_name": file_name, "type": "audio", "uploader": str(update.effective_user.id)})
         save_db()
         await msg.reply_text("🎵 صوت ذخیره شد.")
+    elif msg.photo:
+        db["files"].append({"file_id": msg.photo[-1].file_id, "file_name": "عکس", "type": "photo", "uploader": str(update.effective_user.id)})
+        save_db()
+        await msg.reply_text("📸 عکس ذخیره شد.")
 
 async def files_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     files = db["files"]
@@ -1506,32 +1516,21 @@ async def getfile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_video(f["file_id"])
             elif f["type"] == "audio":
                 await update.message.reply_audio(f["file_id"])
+            elif f["type"] == "photo":
+                await update.message.reply_photo(f["file_id"])
         else:
             await update.message.reply_text("شماره نامعتبر.")
     except:
         await update.message.reply_text("عدد وارد کن.")
-
-# 5. واکنش طنز
-FUNNY_REACTIONS = [
-    "واکنشت رو دیدم! 😏",
-    "آفرین، یه لایک برای تو!",
-    "مرسی از واکنشت! 🤪",
-    "با این واکنش خوشم اومد!",
-    "😎👌",
-]
-
-async def handle_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        if update.message_reaction:
-            await update.message.reply_text(random.choice(FUNNY_REACTIONS))
-    except:
-        pass
 
 # ================== مدیریت پیام‌ها (اصلی) ==================
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await check_bot_active(update, context): return
     msg = update.message; chat = update.effective_chat; user = update.effective_user
     user_id = str(user.id); text = msg.text or msg.caption or ""
+
+    if not text or not text.strip():
+        return   # متن خالی → جواب نده (جلوگیری از خطای BadRequest)
 
     if chat.id not in db["active_chats"]: db["active_chats"].append(chat.id); save_db()
     register_user(user_id, user.username or "", user.first_name or "")
@@ -1543,6 +1542,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     log_action(user_id, "message", text[:50])
+
+    # چک تیکت (اولویت اول)
+    if await handle_ticket_message(update, context):
+        return
 
     # آمار هفتگی
     chat_id = str(chat.id)
@@ -1561,16 +1564,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await auto_save_photo(update, context)
     if await handle_anon_message(update, context): return
-    if await handle_ticket_message(update, context): return
 
     # ذخیره فایل‌های ارسالی
-    if msg.document or msg.video or msg.audio:
+    if msg.document or msg.video or msg.audio or msg.photo:
         await file_handler(update, context)
         return
 
     # ضد لینک
     if chat.type in ["group","supergroup"] and re.search(r'https?://', text):
-        await msg.reply_text("❌ عدالت برای همه یکسان است")
+        await msg.reply_text("❌ لینک ممنوع است.")
         try: await msg.delete()
         except: pass
         db["weekly_stats"][chat_id]["links_deleted"] += 1
@@ -1726,7 +1728,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data.startswith("pollend_"): await poll_end(update, context); return
     if data.startswith("million_"): await millionaire_answer(update, context); return
 
-    # منوها
     if data == "menu_main": await query.edit_message_text("📋 منوی اصلی:", reply_markup=get_main_menu_keyboard(query.from_user.id))
     elif data == "menu_games": await query.edit_message_text("🎮 بازی‌ها:", reply_markup=get_games_keyboard())
     elif data == "menu_tools": await query.edit_message_text("🛠 ابزارها:", reply_markup=get_tools_keyboard())
@@ -1738,7 +1739,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if query.from_user.id != OWNER_ID: await query.answer("فقط سازنده!", show_alert=True); return
         await query.edit_message_text("👑 پنل ادمین:", reply_markup=get_admin_keyboard())
 
-    # راهنماهای ورودی
     elif data == "rps_menu": await query.message.reply_text("/rps")
     elif data == "magic8_menu": await query.message.reply_text("توپ جادویی سوال")
     elif data == "guessword_menu": await query.message.reply_text("/guessword (توی گروه)")
@@ -1790,7 +1790,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "dailyreward_btn": await query.message.reply_text("/dailyreward")
     elif data == "bot_toggle": await query.message.reply_text("/bot on / off")
 
-    # دکمه‌های عملی
     elif data == "coinflip":
         result = random.choice(["شیر 🦁", "خط ⚔️"])
         await query.message.reply_text(f"🪙 سکه انداختم: {result}")
@@ -1933,7 +1932,6 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_handler(MessageHandler(filters.PHOTO, handle_message))
     app.add_handler(MessageHandler(filters.Document.ALL | filters.VIDEO | filters.AUDIO, file_handler))
-    app.add_handler(MessageHandler(filters.UpdateType.REACTION, handle_reaction))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
     print("✅ ربات نهایی کامل اجرا شد.")
