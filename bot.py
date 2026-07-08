@@ -169,7 +169,7 @@ async def send_long_message(chat_id, text, bot, max_len=4000):
     for i in range(0, len(text), max_len):
         await bot.send_message(chat_id=chat_id, text=text[i:i+max_len])
 
-# ================== منوهای شیشه‌ای (ارتقاءیافته) ==================
+# ================== منوهای شیشه‌ای ==================
 def get_main_menu_keyboard(user_id: int = None):
     keyboard = [
         [InlineKeyboardButton("🎮 بازی‌ها", callback_data="menu_games")],
@@ -1183,7 +1183,7 @@ async def mathquiz_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save_db()
     await update.message.reply_text(f"🧮 مسابقه ریاضی! جواب رو سریع بفرستید:\n{a} {op} {b} = ?")
 
-# ================== استیکر، گیف (ذخیره خودکار) ==================
+# ================== استیکر، گیف ==================
 async def sticker_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.sticker:
         db["stickers"].append(update.message.sticker.file_id)
