@@ -169,7 +169,7 @@ async def send_long_message(chat_id, text, bot, max_len=4000):
     for i in range(0, len(text), max_len):
         await bot.send_message(chat_id=chat_id, text=text[i:i+max_len])
 
-# ================== منوهای شیشه‌ای ==================
+# ================== منوهای شیشه‌ای (ارتقاءیافته) ==================
 def get_main_menu_keyboard(user_id: int = None):
     keyboard = [
         [InlineKeyboardButton("🎮 بازی‌ها", callback_data="menu_games")],
