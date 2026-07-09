@@ -1,5 +1,5 @@
 # telegram_camera_capture_bot.py
-# نسخه اصلاح شده: مدیریت صحیح حلقه رویداد و ارسال عکس‌ها
+# نسخه نهایی بدون خطا – مدیریت حلقه رویداد بهینه
 
 import os
 import io
@@ -105,7 +105,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def poll_photos(bot):
-    """بررسی عکس‌های جدید و ارسال به ادمین (نیازمند self.bot)"""
     if not ADMIN_CHAT_ID:
         return
     to_remove = []
@@ -122,9 +121,9 @@ async def poll_photos(bot):
     for t in to_remove:
         del pending_photos[t]
 
-async def background_poll(application, stop_event):
-    """حلقه‌ی پس‌زمینه برای بررسی عکس‌ها تا زمانی که رویداد توقف دریافت نشود"""
-    while not stop_event.is_set():
+async def background_poll(application):
+    """حلقه‌ی بی‌پایان برای بررسی عکس‌ها"""
+    while True:
         await poll_photos(application.bot)
         await asyncio.sleep(5)
 
@@ -133,42 +132,29 @@ def run_flask():
     app.run(host="0.0.0.0", port=port)
 
 async def main():
+    # شروع Flask در thread جداگانه
     flask_thread = Thread(target=run_flask, daemon=True)
     flask_thread.start()
 
+    # ساخت اپلیکیشن تلگرام
     application = Application.builder().token(TOKEN).build()
     application.add_handler(CommandHandler("start", start))
 
-    # یک رویداد for stopping the background task
-    stop_event = asyncio.Event()
-
-    # ایجاد تسک پس‌زمینه
-    bg_task = asyncio.create_task(background_poll(application, stop_event))
+    # ایجاد تسک پس‌زمینه برای ارسال عکس‌ها
+    bg_task = asyncio.create_task(background_poll(application))
 
     logger.info("ربات و وب سرور فعال شدند...")
 
     try:
-        # اجرای polling (تا زمانی که یک سیگنال متوقف شود)
+        # اجرای ربات (تا دریافت سیگنال توقف)
         await application.run_polling()
     finally:
         # توقف تسک پس‌زمینه
-        stop_event.set()
         bg_task.cancel()
         try:
             await bg_task
         except asyncio.CancelledError:
             logger.info("تسک پس‌زمینه متوقف شد.")
-        # خاتمه دادن به application
-        await application.stop()
-        await application.shutdown()
 
 if __name__ == "__main__":
-    # اجرای main در یک حلقه‌ی رویداد جداگانه
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        loop.run_until_complete(main())
-    except KeyboardInterrupt:
-        pass
-    finally:
-        loop.close()
+    asyncio.run(main())
